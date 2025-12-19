@@ -84,6 +84,7 @@ class _HomePageState extends State<HomePage> {
                   // ====== PageView ======
                   SizedBox(
                     height: 200,
+                    width: MediaQuery.of(context).size.width*0.95,
                     child: PageView.builder(
                       controller: _pageController,
                       itemCount: images.length,
@@ -95,7 +96,7 @@ class _HomePageState extends State<HomePage> {
                       itemBuilder: (context, index) {
                         return Image.asset(
                           images[index],
-                          fit: BoxFit.contain,
+                          fit: BoxFit.cover,
                         );
                       },
                     ),
@@ -135,7 +136,7 @@ class _HomePageState extends State<HomePage> {
         
                   // ====== Page indicator ======
                   Positioned(
-                    bottom: 20,
+                    bottom: 10,
                     child: Row(
                       mainAxisAlignment: MainAxisAlignment.center,
                       children: List.generate(
