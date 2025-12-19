@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 
+
 class HomePage extends StatefulWidget {
   const HomePage({super.key});
 
@@ -18,12 +19,24 @@ class _HomePageState extends State<HomePage> {
     'assets/images/ad3.jpg',
   ];
 
+  final TextEditingController _searchController = TextEditingController();
+
+  @override
+  void dispose() {
+    _searchController.dispose();
+    super.dispose();
+  }
+
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
+    return GestureDetector(
+      onTap: (){
+        FocusScope.of(context).unfocus();
+      },
+     child: Scaffold(
       appBar: AppBar(
         title: const Text('Shop'),
-        backgroundColor: Colors.blueAccent,
+        backgroundColor: Colors.black54,
         foregroundColor: Colors.cyanAccent,
         leading: IconButton(
           icon: const Icon(Icons.menu),
@@ -43,12 +56,15 @@ class _HomePageState extends State<HomePage> {
             children: [
               // ====== SEARCH FIELD ======
               TextFormField(
+                controller: _searchController,
                 decoration: InputDecoration(
                   hintText: 'Search products',
                   prefixIcon: const Icon(Icons.search),
                   suffixIcon: IconButton(
                     icon: const Icon(Icons.clear),
-                    onPressed: () {},
+                    onPressed: () {
+                      _searchController.clear();
+                    },
                   ),
                   border: OutlineInputBorder(
                     borderRadius: BorderRadius.circular(12),
@@ -144,7 +160,7 @@ class _HomePageState extends State<HomePage> {
           ),
         ),
       ),
-
+    ),
     );
   }
 }
