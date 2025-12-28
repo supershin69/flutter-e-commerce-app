@@ -1,4 +1,6 @@
+import 'package:e_commerce_frontend/screens/flash_screen.dart';
 import 'package:e_commerce_frontend/screens/home_screen.dart';
+import 'package:e_commerce_frontend/widgets/bottom_nav_bar.dart';
 import 'package:flutter/material.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
@@ -28,7 +30,7 @@ class MyApp extends StatelessWidget {
       theme: ThemeData(
         colorScheme: .fromSeed(seedColor: Colors.deepPurple),
       ),
-      home: const HomePage()
+      home: const SplashScreen()
     );
   }
 }
