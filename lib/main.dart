@@ -1,3 +1,6 @@
+import 'package:e_commerce_frontend/screens/flash_screen.dart';
+import 'package:e_commerce_frontend/screens/home_screen.dart';
+import 'package:e_commerce_frontend/widgets/bottom_nav_bar.dart';
 import 'package:flutter/material.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
@@ -62,44 +65,12 @@ class LoginPage extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      appBar: AppBar(title: const Text('Login')),
-      body: Center(
-        child: ElevatedButton(
-          onPressed: _signInWithGoogle,
-          child: const Text('Sign in with Google'),
-        ),
+    return MaterialApp(
+      title: 'Flutter Demo',
+      theme: ThemeData(
+        colorScheme: .fromSeed(seedColor: Colors.deepPurple),
       ),
-    );
-  }
-}
-
-/// 🏠 Home Page
-class HomePage extends StatelessWidget {
-  const HomePage({super.key});
-
-  @override
-  Widget build(BuildContext context) {
-    final user = supabase.auth.currentUser;
-
-    return Scaffold(
-      appBar: AppBar(
-        title: const Text('Home'),
-        actions: [
-          IconButton(
-            icon: const Icon(Icons.logout),
-            onPressed: () async {
-              await supabase.auth.signOut();
-            },
-          ),
-        ],
-      ),
-      body: Center(
-        child: Text(
-          'Logged in as:\n${user?.email}',
-          textAlign: TextAlign.center,
-        ),
-      ),
+      home: const SplashScreen()
     );
   }
 }
