@@ -1,6 +1,6 @@
 import 'package:e_commerce_frontend/screens/CategoriesPage.dart';
 import 'package:e_commerce_frontend/screens/NotificationPage.dart';
-import 'package:e_commerce_frontend/screens/ProfilePage.dart';
+import 'package:e_commerce_frontend/screens/auth/auth_gate.dart';
 import 'package:flutter/material.dart';
 import '/widgets/bottom_nav_bar.dart';
 
@@ -66,7 +66,7 @@ class _HomePageState extends State<HomePage> {
     _buildHomeContent(), // index 0 → Home
      ProductPage(), // index 1
     const Notificationpage(),
-    const ProfilePage(),    // index 2
+    const AuthGate(),    // index 2
   ];
 
 
