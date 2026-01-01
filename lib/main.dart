@@ -1,35 +1,105 @@
-import 'package:e_commerce_frontend/screens/home_screen.dart';
 import 'package:flutter/material.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
-Future<void> main() async {
+void main() async {
   WidgetsFlutterBinding.ensureInitialized();
 
   await Supabase.initialize(
     url: 'https://mxngcloeolzkfnauioln.supabase.co',
-    anonKey: 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im14bmdjbG9lb2x6a2ZuYXVpb2xuIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjU5NDk2NDcsImV4cCI6MjA4MTUyNTY0N30.-4mju9Eyce84EB_SodaOhAK9vIunJbuXuvuukXfr99g',
+    anonKey: 'sb_secret_-Rfkp-sQcn-cYWnb-p6drQ_MuTJzwrI',
+    authOptions: const FlutterAuthClientOptions(
+      authFlowType: AuthFlowType.pkce,
+    ),
   );
-
-  debugPrint('Supabase initialized: '
-    '${Supabase.instance.client.auth.currentSession}');
-
 
   runApp(const MyApp());
 }
 
+final supabase = Supabase.instance.client;
+
 class MyApp extends StatelessWidget {
   const MyApp({super.key});
 
-  // This widget is the root of your application.
   @override
   Widget build(BuildContext context) {
-    return MaterialApp(
-      title: 'Flutter Demo',
-      theme: ThemeData(
-        colorScheme: .fromSeed(seedColor: Colors.deepPurple),
-      ),
-      home: const HomePage()
+    return const MaterialApp(
+      debugShowCheckedModeBanner: false,
+      home: AuthGate(),
     );
   }
 }
 
+/// 🔐 Auth Gate (THIS IS ALL YOU NEED)
+class AuthGate extends StatelessWidget {
+  const AuthGate({super.key});
+
+  @override
+  Widget build(BuildContext context) {
+    return StreamBuilder<AuthState>(
+      stream: supabase.auth.onAuthStateChange,
+      builder: (context, snapshot) {
+        final session = snapshot.data?.session;
+
+        if (session != null) {
+          return const HomePage();
+        }
+        return const LoginPage();
+      },
+    );
+  }
+}
+
+/// 🔑 Login Page
+class LoginPage extends StatelessWidget {
+  const LoginPage({super.key});
+
+  Future<void> _signInWithGoogle() async {
+    await supabase.auth.signInWithOAuth(
+      OAuthProvider.google,
+      redirectTo: 'ecommerce://login-callback',
+    );
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      appBar: AppBar(title: const Text('Login')),
+      body: Center(
+        child: ElevatedButton(
+          onPressed: _signInWithGoogle,
+          child: const Text('Sign in with Google'),
+        ),
+      ),
+    );
+  }
+}
+
+/// 🏠 Home Page
+class HomePage extends StatelessWidget {
+  const HomePage({super.key});
+
+  @override
+  Widget build(BuildContext context) {
+    final user = supabase.auth.currentUser;
+
+    return Scaffold(
+      appBar: AppBar(
+        title: const Text('Home'),
+        actions: [
+          IconButton(
+            icon: const Icon(Icons.logout),
+            onPressed: () async {
+              await supabase.auth.signOut();
+            },
+          ),
+        ],
+      ),
+      body: Center(
+        child: Text(
+          'Logged in as:\n${user?.email}',
+          textAlign: TextAlign.center,
+        ),
+      ),
+    );
+  }
+}
