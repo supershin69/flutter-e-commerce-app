@@ -75,7 +75,7 @@ class _HomePageState extends State<HomePage> {
     return Scaffold(
       appBar: AppBar(
         title: const Text('Digital Hub'),
-        backgroundColor: Colors.brown.shade300,
+        backgroundColor: const Color(0xFF45C3F5),
         foregroundColor: Colors.black,
       ),
 

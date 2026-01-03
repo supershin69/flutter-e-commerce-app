@@ -12,12 +12,19 @@ class AppBottomNavBar extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return BottomNavigationBar(
+    return Theme(
+        data: Theme.of(context).copyWith(
+        splashColor: Colors.transparent, // remove ripple
+        highlightColor: Colors.transparent, // remove highlight
+        ),
+        child: BottomNavigationBar(
       currentIndex: currentIndex,
       onTap: onTap,
       type: BottomNavigationBarType.fixed,
       selectedItemColor: Colors.amber,
-      selectedFontSize: 15,
+      selectedFontSize: 14,
+      unselectedFontSize: 12,
+      selectedIconTheme: const IconThemeData(size: 30),
       unselectedItemColor: Colors.grey,
       backgroundColor: Colors.black,
       items: const [
@@ -38,6 +45,7 @@ class AppBottomNavBar extends StatelessWidget {
           label: 'Profile',
         ),
       ],
+    ),
     );
   }
 }
