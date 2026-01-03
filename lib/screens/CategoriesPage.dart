@@ -1,112 +1,123 @@
+import 'package:e_commerce_frontend/screens/brands_page.dart';
 import 'package:flutter/material.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
+import '../models/category_model.dart';
 
-class ProductPage extends StatelessWidget {
-   ProductPage({super.key});
 
-  final List<Map<String,String>> products = [
-    {
-      'image': 'assets/images/phone.jpg',
-      'name': 'Phone'
-    },
-    {
-      'image': 'assets/images/flash_logo.png',
-      'name': 'Laptop'
-    },
-    {
-      'image': 'assets/images/airpod.jpg',
-      'name': 'airpod'
-    },
-    {
-      'image': 'assets/images/flash_logo.png',
-      'name': 'Laptop'
-    },
-    {
-      'image': 'assets/images/flash_logo.png',
-      'name': 'Laptop'
-    },
-    {
-      'image': 'assets/images/flash_logo.png',
-      'name': 'Laptop'
-    },
-    {
-      'image': 'assets/images/flash_logo.png',
-      'name': 'Laptop'
-    },
-    {
-      'image': 'assets/images/flash_logo.png',
-      'name': 'Laptop'
-    },
-  ];
+class CategoryPage extends StatelessWidget {
+  CategoryPage({super.key});
+
+  final supabase = Supabase.instance.client;
+
+  Future<List<Category>> fetchCategories() async {
+    final data = await supabase.from('categories').select();
+    return data.map<Category>((e) => Category.fromMap(e)).toList();
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: Colors.white54,
-      body: Padding(
-        padding: const EdgeInsets.all(10),
-        child: GridView.builder(
-          gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-            crossAxisCount: 2,
-            crossAxisSpacing: 20,
-            mainAxisSpacing: 20,
-            childAspectRatio: 0.75, // adjusts item height
-          ),
-          itemCount: products.length,
-          itemBuilder: (context, index) {
-            // ===== Wrapped each item with InkWell =====
-            return InkWell(
-              borderRadius: BorderRadius.circular(20), // ripple effect follows border
-              onTap: () {
-                // Action when item is clicked
-                // You can also navigate to a details page:
-                // Navigator.push(context, MaterialPageRoute(builder: (_) => ProductDetailPage(product: products[index])));
-              },
-              child: Container(
-                decoration: BoxDecoration(
-                  color: Colors.white,
-                  borderRadius: BorderRadius.circular(20),
-                  boxShadow: const [
-                    BoxShadow(
-                      color: Colors.black12,
-                      blurRadius: 6,
-                      offset: Offset(2, 2),
-                    ),
-                  ],
-                ),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.stretch,
-                  children: [
-                    Expanded(
-                      child: ClipRRect(
-                        borderRadius: const BorderRadius.vertical(top: Radius.circular(20)),
-                        child: Image.asset(
-                          products[index]['image']!,
-                          fit: BoxFit.cover,
+      body: FutureBuilder<List<Category>>(
+        future: fetchCategories(),
+        builder: (context, snapshot) {
+          // Loading
+          if (snapshot.connectionState == ConnectionState.waiting) {
+            return const Center(child: CircularProgressIndicator());
+          }
+
+          // Error
+          if (snapshot.hasError) {
+            return Center(child: Text(snapshot.error.toString()));
+          }
+
+          final categories = snapshot.data!;
+
+          return GridView.builder(
+            padding: const EdgeInsets.all(10),
+            gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+              crossAxisCount: 2,
+              crossAxisSpacing: 10,
+              mainAxisSpacing: 10,
+            ),
+            itemCount: categories.length,
+            itemBuilder: (context, index) {
+              final category = categories[index];
+          
+             return InkWell(
+                borderRadius: BorderRadius.circular(16),
+                onTap: () {
+                  Navigator.of(context).push(
+                    MaterialPageRoute(builder: (context) => BrandsPage(categoryId: category.id, categoryName: category.name))
+                  );
+                },
+                child: Card(
+                  elevation: 4,
+                  shadowColor: Colors.black12,
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(16),
+                  ),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      // Image
+                      Expanded(
+                        child: ClipRRect(
+                          borderRadius: const BorderRadius.vertical(
+                            top: Radius.circular(16),
+                          ),
+                          child: Container(
+                            color: Colors.white,
+                            child: Image.network(
+                              category.imageUrl,
+                              width: double.infinity,
+                              fit: BoxFit.contain,
+                              errorBuilder: (context, error, stackTrace) {
+                                return const Center(
+                                  child: Icon(Icons.broken_image, size: 40),
+                                );
+                              },
+                              loadingBuilder: (context, child, loadingProgress) {
+                                if (loadingProgress == null) return child;
+                                return const Center(
+                                  child: CircularProgressIndicator(strokeWidth: 2),
+                                );
+                              },
+                            ),
+                          ),
                         ),
                       ),
-                    ),
-                    const Divider(
-                      color: Colors.black,
-                      thickness: 0.1,
-                    ),
-                    Padding(
-                      padding: const EdgeInsets.all(8.0),
-                      child: Text(
-                        products[index]['name']!,
-                        textAlign: TextAlign.center,
-                        style: const TextStyle(
-                          fontSize: 15,
-                          fontWeight: FontWeight.bold,
-                          color: Colors.black87,
+             
+                      // Text
+                      Container(
+                        width: double.infinity,
+                        decoration: BoxDecoration(
+                          color: Colors.white,
+                          borderRadius: const BorderRadius.vertical(
+                            bottom: Radius.circular(16),
+                          ),
+                        ),
+                        child: Padding(
+                          padding: const EdgeInsets.all(10),
+                          child: Center(
+                            child: Text(
+                              category.name,
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
+                              style: const TextStyle(
+                                fontSize: 14,
+                                fontWeight: FontWeight.w600,
+                              ),
+                            ),
+                          ),
                         ),
                       ),
-                    ),
-                  ],
+                    ],
+                  ),
                 ),
-              ),
-            );
-            // ===== End of InkWell wrapper =====
-          },
-        ),
+              );
+            },
+          );
+        },
       ),
     );
 

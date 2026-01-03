@@ -1,6 +1,7 @@
 import 'package:e_commerce_frontend/screens/CategoriesPage.dart';
 import 'package:e_commerce_frontend/screens/NotificationPage.dart';
-import 'package:e_commerce_frontend/screens/ProfilePage.dart';
+import 'package:e_commerce_frontend/screens/auth/auth_gate.dart';
+import 'package:e_commerce_frontend/utils/colors.dart';
 import 'package:flutter/material.dart';
 import '/widgets/bottom_nav_bar.dart';
 
@@ -64,9 +65,9 @@ class _HomePageState extends State<HomePage> {
 
   late final List<Widget> _pages = [
     _buildHomeContent(), // index 0 → Home
-     ProductPage(), // index 1
+     CategoryPage(), // index 1
     const Notificationpage(),
-    const ProfilePage(),    // index 2
+    const AuthGate(),    // index 2
   ];
 
 
@@ -75,7 +76,7 @@ class _HomePageState extends State<HomePage> {
     return Scaffold(
       appBar: AppBar(
         title: const Text('Digital Hub'),
-        backgroundColor: const Color(0xFF45C3F5),
+        backgroundColor: AppColors.appbarColor,
         foregroundColor: Colors.black,
       ),
 
