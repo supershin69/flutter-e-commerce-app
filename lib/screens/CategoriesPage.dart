@@ -120,5 +120,7 @@ class CategoryPage extends StatelessWidget {
         },
       ),
     );
+
+
   }
 }
