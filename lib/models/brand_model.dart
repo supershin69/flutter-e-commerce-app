@@ -10,11 +10,11 @@ class Brand {
   });
 
   factory Brand.fromMap(Map<String, dynamic> map) {
-      final brand = map['brands'];
+      
       return Brand(
-        id: brand['id'],
-        name: brand['name'],
-        logoUrl: brand['logo_url'],
+        id: map['id'] as String,
+        name: map['name'] as String,
+        logoUrl: map['logo_url'] as String,
       );
   }
 }
