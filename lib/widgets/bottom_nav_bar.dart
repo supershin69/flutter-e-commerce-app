@@ -1,3 +1,4 @@
+import 'package:e_commerce_frontend/utils/colors.dart';
 import 'package:flutter/material.dart';
 
 class AppBottomNavBar extends StatelessWidget {
@@ -15,18 +16,19 @@ class AppBottomNavBar extends StatelessWidget {
     return Theme(
         data: Theme.of(context).copyWith(
         splashColor: Colors.transparent, // remove ripple
-        highlightColor: Colors.transparent, // remove highlight
+        highlightColor: Colors.transparent,
+         // remove highlight
         ),
         child: BottomNavigationBar(
       currentIndex: currentIndex,
       onTap: onTap,
       type: BottomNavigationBarType.fixed,
-      selectedItemColor: Colors.amber,
+      selectedItemColor: AppColors.appbarColor,
       selectedFontSize: 14,
       unselectedFontSize: 12,
       selectedIconTheme: const IconThemeData(size: 30),
       unselectedItemColor: Colors.grey,
-      backgroundColor: Colors.black,
+      backgroundColor: Colors.white,
       items: const [
         BottomNavigationBarItem(
           icon: Icon(Icons.home),

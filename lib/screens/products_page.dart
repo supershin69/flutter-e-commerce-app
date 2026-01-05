@@ -101,6 +101,7 @@ class _ProductState extends State<ProductsPage> {
                   borderRadius: BorderRadius.circular(16),
                   onTap: () {
                     // Navigate to product details page
+                    
                     Navigator.of(context).push(
                       MaterialPageRoute(builder: (context) => ProductDetails())
                     );
