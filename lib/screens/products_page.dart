@@ -39,7 +39,7 @@ class _ProductState extends State<ProductsPage> {
 
     Future <List<Product>> fetchProducts() async {
       final data = await supabase.from('product_catalog')
-                                .select('id, name, min_price, max_price, images')
+                                .select()
                                 .eq('category_name', widget.categoryName)
                                 .eq('brand_name', widget.brandName);
       
@@ -123,7 +123,9 @@ class _ProductState extends State<ProductsPage> {
                             child: Container(
                               color: Colors.white,
                               child: Image.network(
-                                product.images[0],
+                                product.images.isNotEmpty 
+                                  ? product.images[0].url  // Access .url here
+                                  : 'https://via.placeholder.com/150', // Placeholder if images list is empty
                                 fit: BoxFit.contain,
                                 width: double.infinity,
                               ),
