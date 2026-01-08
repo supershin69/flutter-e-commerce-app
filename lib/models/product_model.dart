@@ -1,7 +1,10 @@
+import 'variant_attribute_model.dart';
 class Product {
   final String id;
   final String name;
   final String description;
+  final String categoryName;
+  final String brandName;
   final int minPrice;
   final int maxPrice;
   final List<ProductVariant> variants;
@@ -15,6 +18,8 @@ class Product {
     required this.maxPrice,
     required this.variants,
     required this.images,
+    required this.categoryName,
+    required this.brandName,
   });
 
   factory Product.fromMap(Map<String, dynamic> map) {
@@ -22,6 +27,8 @@ class Product {
     id: map['id']?.toString() ?? '',
     name: map['name']?.toString() ?? '',
     description: map['description'] ?? '',
+    categoryName: map['category_name']?.toString() ?? '',
+    brandName: map['brand_name']?.toString() ?? '',
     minPrice: map['min_price'] is int ? map['min_price'] : (int.tryParse(map['min_price']?.toString() ?? '0') ?? 0),
     maxPrice: map['max_price'] is int ? map['max_price'] : (int.tryParse(map['max_price']?.toString() ?? '0') ?? 0),
     variants: (map['variants'] as List<dynamic>?)
@@ -66,28 +73,7 @@ class ProductVariant {
   }
 }
 
-class VariantAttribute {
-  final String type; // 'color', 'ram'
-  final String value; // 'red', '8gb'
-  final String displayValue; // 'Red', '8GB'
-  final String attributeValueId; // UUID needed for matching images
 
-  VariantAttribute({
-    required this.type,
-    required this.value,
-    required this.displayValue,
-    required this.attributeValueId,
-  });
-
-  factory VariantAttribute.fromMap(Map<String, dynamic> map) {
-    return VariantAttribute(
-      type: map['type'],
-      value: map['value'],
-      displayValue: map['display_value'] ?? map['value'],
-      attributeValueId: map['attribute_value_id'],
-    );
-  }
-}
 
 class ProductImage {
   final String url;

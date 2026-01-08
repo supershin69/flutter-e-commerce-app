@@ -1,14 +1,16 @@
 import 'package:e_commerce_frontend/utils/colors.dart';
 import 'package:flutter/material.dart';
 
-class TransparentAppbar extends StatelessWidget implements PreferredSizeWidget{
-
+class TransparentAppbar extends StatelessWidget implements PreferredSizeWidget {
   final bool isWishlisted;
   final VoidCallback onWishlistToggle;
+  final int cartCount; // Added this
+
   const TransparentAppbar({
-    super.key, 
-    required this.isWishlisted, 
-    required this.onWishlistToggle
+    super.key,
+    required this.isWishlisted,
+    required this.onWishlistToggle,
+    this.cartCount = 0, // Default to 0
   });
 
   @override
@@ -16,41 +18,57 @@ class TransparentAppbar extends StatelessWidget implements PreferredSizeWidget{
 
   @override
   Widget build(BuildContext context) {
-    // TODO: implement build
     return SafeArea(
       bottom: false,
       child: Padding(
-        padding: const EdgeInsets.symmetric(
-          horizontal: 16,
-          vertical: 10
-        ),
+        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
         child: Row(
           mainAxisAlignment: MainAxisAlignment.spaceBetween,
           children: [
-            // Go Back Button
             _CircleButton(
-              icon: Icons.chevron_left, 
-              onTap: () {
-                Navigator.pop(context);
-              }
+              icon: Icons.chevron_left,
+              onTap: () => Navigator.pop(context),
             ),
             Row(
               children: [
-                // Wishlist Add Button
                 IconButton(
-                  onPressed: onWishlistToggle, 
+                  onPressed: onWishlistToggle,
                   icon: Icon(
-                    isWishlisted ? Icons.favorite :  Icons.favorite_border,
+                    isWishlisted ? Icons.favorite : Icons.favorite_border,
                     color: isWishlisted ? Colors.red : AppColors.appbarColor,
-                  )
+                  ),
                 ),
                 const SizedBox(width: 8),
-                // Cart Button
-                _CircleButton(
-                  icon: Icons.shopping_cart, 
-                  onTap: () {
-                    // Handle shopping cart tap
-                  }
+                // Cart Button with Badge
+                Stack(
+                  children: [
+                    _CircleButton(
+                      icon: Icons.shopping_cart,
+                      onTap: () {
+                         // Navigate to Cart Page
+                      },
+                    ),
+                    if (cartCount > 0)
+                      Positioned(
+                        right: 0,
+                        top: 0,
+                        child: Container(
+                          padding: const EdgeInsets.all(4),
+                          decoration: const BoxDecoration(
+                            color: Colors.red,
+                            shape: BoxShape.circle,
+                          ),
+                          child: Text(
+                            cartCount > 9 ? '9+' : cartCount.toString(),
+                            style: const TextStyle(
+                              color: Colors.white,
+                              fontSize: 10,
+                              fontWeight: FontWeight.bold,
+                            ),
+                          ),
+                        ),
+                      ),
+                  ],
                 )
               ],
             )
@@ -65,30 +83,21 @@ class _CircleButton extends StatelessWidget {
   final IconData icon;
   final VoidCallback onTap;
 
-  const _CircleButton({
-    required this.icon,
-    required this.onTap
-  });
+  const _CircleButton({required this.icon, required this.onTap});
 
   @override
   Widget build(BuildContext context) {
-    // TODO: implement build
     return Material(
-      color: AppColors.appbarColor,
+      color: AppColors.appbarColor.withOpacity(0.8), // Added opacity for better visibility on images
       shape: const CircleBorder(),
       child: InkWell(
         customBorder: const CircleBorder(),
         onTap: onTap,
         child: Padding(
           padding: const EdgeInsets.all(10),
-          child: Icon(
-            icon,
-            color: Colors.white,
-            size: 20,
-          ),
+          child: Icon(icon, color: Colors.white, size: 20),
         ),
       ),
-
     );
   }
 }

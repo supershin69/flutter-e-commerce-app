@@ -103,7 +103,7 @@ class _ProductState extends State<ProductsPage> {
                     // Navigate to product details page
                     
                     Navigator.of(context).push(
-                      MaterialPageRoute(builder: (context) => ProductDetails())
+                      MaterialPageRoute(builder: (context) => ProductDetails(product: product))
                     );
                   },
                   child: Card(
@@ -123,11 +123,25 @@ class _ProductState extends State<ProductsPage> {
                             child: Container(
                               color: Colors.white,
                               child: Image.network(
+                                loadingBuilder: (context, child, loadingProgress) {
+                                  if (loadingProgress == null) return child;
+                                  return Center(
+                                    child: CircularProgressIndicator(
+                                      value: loadingProgress.expectedTotalBytes != null
+                                          ? loadingProgress.cumulativeBytesLoaded /
+                                              loadingProgress.expectedTotalBytes!
+                                          : null,
+                                    ),
+                                  );
+                                },
+                                
                                 product.images.isNotEmpty 
                                   ? product.images[0].url  // Access .url here
                                   : 'https://via.placeholder.com/150', // Placeholder if images list is empty
                                 fit: BoxFit.contain,
                                 width: double.infinity,
+                                errorBuilder: (context, error, stackTrace) =>
+                                    const Center(child: Icon(Icons.error_outline, color: Colors.grey)),
                               ),
                             ),
                           )
@@ -159,14 +173,14 @@ class _ProductState extends State<ProductsPage> {
                             Text(
                               '${product.minPrice} MMK',
                               style: TextStyle(
-                                color: Colors.red,
+                                color: AppColors.matchaGreen,
                                 fontWeight: FontWeight.bold,
                                 fontSize: 14
                               ),
                             ) : Text(
                               '${product.minPrice} - ${product.maxPrice} MMK',
                               style: TextStyle(
-                                color: Colors.red,
+                                color: AppColors.matchaGreen,
                                 fontWeight: FontWeight.bold,
                                 fontSize: 14
                               ),
