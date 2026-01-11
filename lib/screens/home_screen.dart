@@ -66,7 +66,7 @@ class _HomePageState extends State<HomePage> {
   late final List<Widget> _pages = [
     _buildHomeContent(), // index 0 → Home
      CategoryPage(), // index 1
-    const Notificationpage(),
+    const NotificationPage(),
     const AuthGate(),    // index 2
   ];
 
