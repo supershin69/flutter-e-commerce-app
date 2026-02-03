@@ -1,9 +1,9 @@
-import 'dart:ui';
+import 'package:e_commerce_frontend/utils/colors.dart';
 import 'package:flutter/material.dart';
 
 class AppBottomNavBar extends StatelessWidget {
   final int currentIndex;
-  final ValueChanged<int> onTap;
+  final Function(int) onTap;
 
   const AppBottomNavBar({
     super.key,
@@ -11,89 +11,138 @@ class AppBottomNavBar extends StatelessWidget {
     required this.onTap,
   });
 
-  static const _items = [
-    (Icons.home, 'Home'),
-    (Icons.shopping_cart, 'Products'),
-    (Icons.notifications, 'Notification'),
-    (Icons.person, 'Profile'),
-  ];
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      decoration: BoxDecoration(
+        color: Colors.brown.shade300,
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withOpacity(0.1),
+            blurRadius: 10,
+            offset: const Offset(0, -2),
+          ),
+        ],
+      ),
+      child: SafeArea(
+        top: false,
+        child: Container(
+          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+          child: Row(
+            mainAxisAlignment: MainAxisAlignment.spaceAround,
+            children: [
+              _NavItem(
+                icon: Icons.home_rounded,
+                label: 'Home',
+                isActive: currentIndex == 0,
+                onTap: () => onTap(0),
+              ),
+              _NavItem(
+                icon: Icons.storefront_rounded,
+                label: 'Store',
+                isActive: currentIndex == 1,
+                onTap: () => onTap(1),
+              ),
+              _NavItem(
+                icon: Icons.favorite_rounded,
+                label: 'Wishlist',
+                isActive: currentIndex == 2,
+                onTap: () => onTap(2),
+              ),
+              _NavItem(
+                icon: Icons.person_rounded,
+                label: 'Profile',
+                isActive: currentIndex == 3,
+                onTap: () => onTap(3),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+class _NavItem extends StatelessWidget {
+  final IconData icon;
+  final String label;
+  final bool isActive;
+  final VoidCallback onTap;
+
+  const _NavItem({
+    required this.icon,
+    required this.label,
+    required this.isActive,
+    required this.onTap,
+  });
 
   @override
   Widget build(BuildContext context) {
-    return SafeArea(
-      child: Padding(
-        padding: const EdgeInsets.fromLTRB(18, 0, 18, 14), // floating spacing
-        child: ClipRRect(
-          borderRadius: BorderRadius.circular(28), // pill shape
-          child: BackdropFilter(
-            filter: ImageFilter.blur(sigmaX: 22, sigmaY: 22), // glass blur
-            child: Container(
-              height: 70,
-              padding: const EdgeInsets.symmetric(horizontal: 8),
-              decoration: BoxDecoration(
-                color: Colors.black.withOpacity(0.35), // glass tint
-                borderRadius: BorderRadius.circular(28),
-                border: Border.all(color: Colors.white.withOpacity(0.12)),
-                boxShadow: [
-                  BoxShadow(
-                    color: Colors.black.withOpacity(0.35),
-                    blurRadius: 24,
-                    offset: const Offset(0, 10), // lift / floating shadow
-                  ),
-                ],
-              ),
-              child: Row(
-                children: List.generate(_items.length, (i) {
-                  final active = i == currentIndex;
-                  final (icon, label) = _items[i];
-
-                  return Expanded(
-                    child: InkWell(
-                      onTap: () => onTap(i),
-                      splashColor: Colors.transparent,
-                      highlightColor: Colors.transparent,
-                      child: AnimatedContainer(
-                        duration: const Duration(milliseconds: 200),
-                        curve: Curves.easeOut,
-                        height: 54,
-                        margin: const EdgeInsets.symmetric(horizontal: 6),
-                        decoration: BoxDecoration(
-                          color: active
-                              ? Colors.white.withOpacity(0.14)
-                              : Colors.transparent, // selected bubble
-                          borderRadius: BorderRadius.circular(18),
-                          border: active
-                              ? Border.all(color: Colors.white.withOpacity(0.18))
-                              : null,
-                        ),
-                        child: Column(
-                          mainAxisAlignment: MainAxisAlignment.center,
-                          children: [
-                            Icon(
-                              icon,
-                              size: active ? 28 : 26,
-                              color: active ? Colors.black : Colors.white70,
-                            ),
-                            const SizedBox(height: 4),
-                            Text(
-                              label,
-                              maxLines: 1,
-                              overflow: TextOverflow.ellipsis,
-                              style: TextStyle(
-                                fontSize: 11,
-                                fontWeight: active
-                                    ? FontWeight.w700
-                                    : FontWeight.w500,
-                                color: active ? Colors.black : Colors.white70,
-                              ),
-                            ),
-                          ],
+    return Expanded(
+      child: Material(
+        color: Colors.transparent,
+        child: InkWell(
+          onTap: onTap,
+          borderRadius: BorderRadius.circular(16),
+          child: Container(
+            padding: const EdgeInsets.symmetric(vertical: 2),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                // Icon with active indicator
+                Stack(
+                  clipBehavior: Clip.none,
+                  alignment: Alignment.center,
+                  children: [
+                    // Active background circle
+                    if (isActive)
+                      Positioned(
+                        left: -5,
+                        right: -5,
+                        top: -5,
+                        bottom: -5,
+                        child: Container(
+                          decoration: BoxDecoration(
+                            color: Colors.white.withOpacity(0.2),
+                            shape: BoxShape.circle,
+                          ),
                         ),
                       ),
+                    // Icon
+                    Icon(
+                      icon,
+                      color: isActive ? Colors.white : Colors.white.withOpacity(0.6),
+                      size: isActive ? 24 : 20,
                     ),
-                  );
-                }),
-              ),
+                  ],
+                ),
+                const SizedBox(height: 2),
+                // Label
+                Text(
+                  label,
+                  style: TextStyle(
+                    color: isActive ? Colors.white : Colors.white.withOpacity(0.7),
+                    fontSize: isActive ? 11 : 10,
+                    fontWeight: isActive ? FontWeight.w700 : FontWeight.w500,
+                    letterSpacing: 0.1,
+                    height: 1.0,
+                  ),
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                ),
+                // Active indicator dot
+                if (isActive)
+                  Container(
+                    margin: const EdgeInsets.only(top: 1),
+                    width: 3,
+                    height: 3,
+                    decoration: const BoxDecoration(
+                      color: Colors.white,
+                      shape: BoxShape.circle,
+                    ),
+                  ),
+              ],
             ),
           ),
         ),
