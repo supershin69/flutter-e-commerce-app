@@ -2,7 +2,7 @@ import 'package:e_commerce_frontend/utils/colors.dart';
 import 'package:flutter/material.dart';
 
 class ProductActionBar extends StatefulWidget{
-  final VoidCallback addToCart;
+  final Function(int quantity) addToCart;
   const ProductActionBar({super.key, required this.addToCart});
 
   @override
@@ -90,7 +90,7 @@ class _ProductActionState extends State<ProductActionBar> {
               ],
             ),
             GestureDetector(
-              onTap: widget.addToCart,
+              onTap: () => widget.addToCart(quantity),
               child: Container(
                 padding: EdgeInsets.all(10),
                 decoration: BoxDecoration(
