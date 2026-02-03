@@ -1,4 +1,5 @@
 import 'package:e_commerce_frontend/models/product_model.dart';
+import 'package:e_commerce_frontend/models/cart_item_model.dart';
 import 'package:e_commerce_frontend/screens/auth/auth_gate.dart';
 import 'package:e_commerce_frontend/utils/colors.dart';
 import 'package:e_commerce_frontend/widgets/product_action_bar.dart';
@@ -7,6 +8,8 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import '../models/variant_attribute_model.dart';
+import '../services/cart_service.dart';
+import 'package:uuid/uuid.dart';
 
 class ProductDetails extends StatefulWidget {
   final Product product; // Pass the product here
@@ -21,6 +24,8 @@ class _ProductDetailState extends State<ProductDetails> {
   bool isWishlisted = false;
 
   final supabase = Supabase.instance.client;
+  final CartService _cartService = CartService();
+  final _uuid = const Uuid();
 
   late Future<List<Product>> _RelatedProductFuture;
 
@@ -131,7 +136,7 @@ class _ProductDetailState extends State<ProductDetails> {
     );
   }
 
-  void addToCart() {
+  Future<void> addToCart(int quantity) async {
     if (currentVariant == null && widget.product.variants.isNotEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(content: Text("Please select all options"))
@@ -139,12 +144,63 @@ class _ProductDetailState extends State<ProductDetails> {
       return;
     }
     
-    // TODO: Add logic to add to cart provider/database
-    // You would pass: widget.product.id, currentVariant?.id, quantity
-    
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(content: Text("Added ${currentVariant?.attributes.map((e) => e.displayValue).join(' ')} to Cart"))
-    );
+    try {
+      final variant = currentVariant ?? (widget.product.variants.isNotEmpty ? widget.product.variants.first : null);
+      final price = variant?.price ?? widget.product.minPrice;
+      final variantId = variant?.id ?? 'default';
+      final variantName = variant != null 
+          ? variant.attributes.map((e) => e.displayValue).join(', ')
+          : null;
+      
+      final firstImage = widget.product.images.isNotEmpty 
+          ? widget.product.images.first.url 
+          : '';
+      
+      final cartItem = CartItem(
+        id: _uuid.v4(),
+        productId: widget.product.id,
+        productName: widget.product.name,
+        variantId: variantId,
+        variantName: variantName,
+        price: price,
+        quantity: quantity,
+        imageUrl: firstImage,
+        brandName: widget.product.brandName,
+        categoryName: widget.product.categoryName,
+      );
+      
+      final success = await _cartService.addToCart(cartItem);
+      
+      if (success) {
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text("Added ${quantity}x ${widget.product.name} to Cart"),
+              backgroundColor: Colors.green,
+            ),
+          );
+        }
+      } else {
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              content: Text("Failed to add to cart"),
+              backgroundColor: Colors.red,
+            ),
+          );
+        }
+      }
+    } catch (e) {
+      debugPrint('Error adding to cart: $e');
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text("Error: ${e.toString()}"),
+            backgroundColor: Colors.red,
+          ),
+        );
+      }
+    }
   }
 
   @override
@@ -170,7 +226,6 @@ class _ProductDetailState extends State<ProductDetails> {
         appBar: TransparentAppbar(
           isWishlisted: isWishlisted, 
           onWishlistToggle: onWishlistToggle,
-          cartCount: 2, // Example: Replace with real cart provider count
         ),
         body: SingleChildScrollView(
           child: Column(

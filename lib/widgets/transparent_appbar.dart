@@ -4,13 +4,11 @@ import 'package:flutter/material.dart';
 class TransparentAppbar extends StatelessWidget implements PreferredSizeWidget {
   final bool isWishlisted;
   final VoidCallback onWishlistToggle;
-  final int cartCount; // Added this
 
   const TransparentAppbar({
     super.key,
     required this.isWishlisted,
     required this.onWishlistToggle,
-    this.cartCount = 0, // Default to 0
   });
 
   @override
@@ -29,48 +27,12 @@ class TransparentAppbar extends StatelessWidget implements PreferredSizeWidget {
               icon: Icons.chevron_left,
               onTap: () => Navigator.pop(context),
             ),
-            Row(
-              children: [
-                IconButton(
-                  onPressed: onWishlistToggle,
-                  icon: Icon(
-                    isWishlisted ? Icons.favorite : Icons.favorite_border,
-                    color: isWishlisted ? Colors.red : AppColors.appbarColor,
-                  ),
-                ),
-                const SizedBox(width: 8),
-                // Cart Button with Badge
-                Stack(
-                  children: [
-                    _CircleButton(
-                      icon: Icons.shopping_cart,
-                      onTap: () {
-                         // Navigate to Cart Page
-                      },
-                    ),
-                    if (cartCount > 0)
-                      Positioned(
-                        right: 0,
-                        top: 0,
-                        child: Container(
-                          padding: const EdgeInsets.all(4),
-                          decoration: const BoxDecoration(
-                            color: Colors.red,
-                            shape: BoxShape.circle,
-                          ),
-                          child: Text(
-                            cartCount > 9 ? '9+' : cartCount.toString(),
-                            style: const TextStyle(
-                              color: Colors.white,
-                              fontSize: 10,
-                              fontWeight: FontWeight.bold,
-                            ),
-                          ),
-                        ),
-                      ),
-                  ],
-                )
-              ],
+            IconButton(
+              onPressed: onWishlistToggle,
+              icon: Icon(
+                isWishlisted ? Icons.favorite : Icons.favorite_border,
+                color: isWishlisted ? Colors.red : AppColors.appbarColor,
+              ),
             )
           ],
         ),
