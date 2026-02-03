@@ -3,6 +3,7 @@ import 'package:e_commerce_frontend/screens/CategoriesPage.dart';
 import 'package:e_commerce_frontend/screens/store/store_page.dart';
 import 'package:e_commerce_frontend/screens/wishlist_page.dart';
 import 'package:e_commerce_frontend/screens/auth/auth_gate.dart';
+import 'package:e_commerce_frontend/screens/cart_page.dart';
 import 'package:e_commerce_frontend/utils/colors.dart';
 import 'package:flutter/material.dart';
 import '/widgets/bottom_nav_bar.dart';
@@ -139,9 +140,9 @@ class _HomePageState extends State<HomePage> {
 
   late final List<Widget> _pages = [
     _buildHomeContent(), // index 0 → Home
-    const StorePage(), // index 1 → Store
-    const WishlistPage(), // index 2 → Wishlist
-    const AuthGate(), // index 3 → Profile
+    CategoryPage(), // index 1
+    const Notificationpage(),
+    const AuthGate(),    // index 2
   ];
 
   @override
@@ -396,6 +397,86 @@ class _HomePageState extends State<HomePage> {
                             );
                           },
                         ),
+
+                      ],
+                    ),
+                  );
+                },
+              ),
+            ),
+            SizedBox(height: 25,),
+            Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                GestureDetector(
+                  onTap: (){},
+                  child: Text('Hot Items',
+                    style: TextStyle(
+                        color: Colors.black,
+                      fontSize: 18,
+                      fontWeight: FontWeight.bold
+                    ),
+                  ),
+                ),
+                GestureDetector(
+                  onTap: (){},
+                  child:
+                  Text('See All',
+                      style: TextStyle(
+                          color: Colors.blue,
+                          decoration: TextDecoration.underline,decorationColor: Colors.blue
+                      )
+                  ),
+                )
+              ],
+
+            ),
+            const SizedBox(height: 12),
+
+            SizedBox(
+              height: 230,
+              child: ListView.builder(
+                scrollDirection: Axis.horizontal,
+                itemCount: promotions.length,
+                itemBuilder: (context, index) {
+                  final item = promotions[index];
+                  return Container(
+                    width: 160,
+                    margin: const EdgeInsets.only(right: 16),
+                    decoration: BoxDecoration(
+                      borderRadius: BorderRadius.circular(16),
+                      color: Colors.white,
+                      boxShadow: const [
+                        BoxShadow(color: Colors.black12, blurRadius: 6),
+                      ],
+                    ),
+                    child: Column(
+                      children: [
+                        ClipRRect(
+                          borderRadius: const BorderRadius.vertical(
+                            top: Radius.circular(16),
+                          ),
+                          child: Image.asset(
+                            item['image']!,
+                            height: 120,
+                            width: double.infinity,
+                            //fit: BoxFit.cover,
+                          ),
+                        ),
+                        Padding(
+                          padding: const EdgeInsets.all(8),
+                          child: Column(
+                            children: [
+                              Text(item['title']!,
+                                  style: const TextStyle(fontWeight: FontWeight.bold)),
+                              Text(item['price']!,
+                                  style: const TextStyle(color: Colors.red)),
+                              Text(item['discount']!,
+                                  style: const TextStyle(color: Colors.green)),
+                            ],
+                          ),
+                        ),
+
                       ],
                     ),
                   ),

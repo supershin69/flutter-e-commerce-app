@@ -1,5 +1,7 @@
 import 'package:e_commerce_frontend/screens/home_screen.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter_spinkit/flutter_spinkit.dart';
+import 'package:google_fonts/google_fonts.dart';
 
 class SplashScreen extends StatefulWidget {
   const SplashScreen({super.key});
@@ -11,25 +13,24 @@ class SplashScreen extends StatefulWidget {
 class _FlashScreenState extends State<SplashScreen> {
   @override
   void initState() {
-    // TODO: implement initState
     super.initState();
 
     Future.delayed(const Duration(seconds: 4),(){
       if (!mounted) return;
       Navigator.pushReplacement(
         context,
-        MaterialPageRoute(builder: (context)=> HomePage()),
+        MaterialPageRoute(builder: (context) => const HomePage()),
       );
-    }
-    );
+    });
   }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
       body: Container(
         decoration: const BoxDecoration(
           gradient: LinearGradient(
-            colors: [Colors.white, Colors.black87],
+            colors: [Colors.teal, Colors.white],
             begin: Alignment.topLeft,
             end: Alignment.bottomRight,
           ),
@@ -38,19 +39,35 @@ class _FlashScreenState extends State<SplashScreen> {
           child: Column(
             mainAxisAlignment: MainAxisAlignment.center,
             children: [
-              Image.asset('assets/images/flash_logo.png', width: 250 , height: 250, color: Colors.white,),
+              Image.asset(
+                'assets/images/splash_logo.png',
+                width: 250,
+                height: 250,
+              ),
               const SizedBox(height: 20),
-              const Text(
-                'Gadget Shop',
-                style: TextStyle(
-                  fontSize: 28,
-                  color: Colors.white54,
+              Text(
+                'Digital Hub',
+                style: GoogleFonts.ubuntu(
+                  fontSize: 24,
                   fontWeight: FontWeight.bold,
                 ),
               ),
               const SizedBox(height: 30),
-              const CircularProgressIndicator(
-                color: Colors.white,
+              const SpinKitThreeInOut(
+                color: Colors.black,
+                size: 40.0,
+              ),
+              const SizedBox(height: 100),
+              Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 24),
+                child: Text(
+                  "Everything you need in technology, carefully selected to upgrade your daily digital experience",
+                  textAlign: TextAlign.center,
+                  style: GoogleFonts.mulish(
+                      fontSize: 14,
+                      fontWeight: FontWeight.bold,
+                      color: Colors.black),
+                ),
               ),
             ],
           ),
