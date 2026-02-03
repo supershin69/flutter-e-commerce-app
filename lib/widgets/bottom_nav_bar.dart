@@ -1,8 +1,9 @@
+import 'dart:ui';
 import 'package:flutter/material.dart';
 
 class AppBottomNavBar extends StatelessWidget {
   final int currentIndex;
-  final Function(int) onTap;
+  final ValueChanged<int> onTap;
 
   const AppBottomNavBar({
     super.key,
@@ -10,42 +11,93 @@ class AppBottomNavBar extends StatelessWidget {
     required this.onTap,
   });
 
+  static const _items = [
+    (Icons.home, 'Home'),
+    (Icons.shopping_cart, 'Products'),
+    (Icons.notifications, 'Notification'),
+    (Icons.person, 'Profile'),
+  ];
+
   @override
   Widget build(BuildContext context) {
-    return Theme(
-        data: Theme.of(context).copyWith(
-        splashColor: Colors.transparent, // remove ripple
-        highlightColor: Colors.transparent, // remove highlight
+    return SafeArea(
+      child: Padding(
+        padding: const EdgeInsets.fromLTRB(18, 0, 18, 14), // floating spacing
+        child: ClipRRect(
+          borderRadius: BorderRadius.circular(28), // pill shape
+          child: BackdropFilter(
+            filter: ImageFilter.blur(sigmaX: 22, sigmaY: 22), // glass blur
+            child: Container(
+              height: 70,
+              padding: const EdgeInsets.symmetric(horizontal: 8),
+              decoration: BoxDecoration(
+                color: Colors.black.withOpacity(0.35), // glass tint
+                borderRadius: BorderRadius.circular(28),
+                border: Border.all(color: Colors.white.withOpacity(0.12)),
+                boxShadow: [
+                  BoxShadow(
+                    color: Colors.black.withOpacity(0.35),
+                    blurRadius: 24,
+                    offset: const Offset(0, 10), // lift / floating shadow
+                  ),
+                ],
+              ),
+              child: Row(
+                children: List.generate(_items.length, (i) {
+                  final active = i == currentIndex;
+                  final (icon, label) = _items[i];
+
+                  return Expanded(
+                    child: InkWell(
+                      onTap: () => onTap(i),
+                      splashColor: Colors.transparent,
+                      highlightColor: Colors.transparent,
+                      child: AnimatedContainer(
+                        duration: const Duration(milliseconds: 200),
+                        curve: Curves.easeOut,
+                        height: 54,
+                        margin: const EdgeInsets.symmetric(horizontal: 6),
+                        decoration: BoxDecoration(
+                          color: active
+                              ? Colors.white.withOpacity(0.14)
+                              : Colors.transparent, // selected bubble
+                          borderRadius: BorderRadius.circular(18),
+                          border: active
+                              ? Border.all(color: Colors.white.withOpacity(0.18))
+                              : null,
+                        ),
+                        child: Column(
+                          mainAxisAlignment: MainAxisAlignment.center,
+                          children: [
+                            Icon(
+                              icon,
+                              size: active ? 28 : 26,
+                              color: active ? Colors.black : Colors.white70,
+                            ),
+                            const SizedBox(height: 4),
+                            Text(
+                              label,
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
+                              style: TextStyle(
+                                fontSize: 11,
+                                fontWeight: active
+                                    ? FontWeight.w700
+                                    : FontWeight.w500,
+                                color: active ? Colors.black : Colors.white70,
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ),
+                  );
+                }),
+              ),
+            ),
+          ),
         ),
-        child: BottomNavigationBar(
-      currentIndex: currentIndex,
-      onTap: onTap,
-      type: BottomNavigationBarType.fixed,
-      selectedItemColor: Colors.amber,
-      selectedFontSize: 14,
-      unselectedFontSize: 12,
-      selectedIconTheme: const IconThemeData(size: 30),
-      unselectedItemColor: Colors.grey,
-      backgroundColor: Colors.black,
-      items: const [
-        BottomNavigationBarItem(
-          icon: Icon(Icons.home),
-          label: 'Home',
-        ),
-        BottomNavigationBarItem(
-          icon: Icon(Icons.shopping_cart),
-          label: 'Products',
-        ),
-        BottomNavigationBarItem(
-          icon: Icon(Icons.notifications),
-          label: 'Notification',
-        ),
-        BottomNavigationBarItem(
-          icon: Icon(Icons.person),
-          label: 'Profile',
-        ),
-      ],
-    ),
+      ),
     );
   }
 }
