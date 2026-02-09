@@ -27,7 +27,7 @@ class CheckoutService {
     String paymentStatus = 'pending', // Should match payment_status enum
     String? paymentMethod,
     String? shippingMethod, // Note: database uses shipping_method, not delivery_method
-    String? receiptUrl,
+    String? transactionId, // Transaction ID from mobile banking (last 6 digits)
   }) async {
     try {
       // Generate UUID if not provided
@@ -42,7 +42,6 @@ class CheckoutService {
         'phone': phoneNumber,
         'name': customerName,
         'items': items.map((item) => item.toMap()).toList(),
-        if (receiptUrl != null) 'receipt_url': receiptUrl,
       };
 
       // Create order data matching the exact Supabase schema
@@ -56,6 +55,7 @@ class CheckoutService {
         'payment_method': paymentMethod ?? 'cash-on-delivery',
         'shipping_method': shippingMethod ?? 'standard',
         'customer_name': customerName,
+        if (transactionId != null && transactionId.isNotEmpty) 'transaction_id': transactionId,
         // created_at will be set automatically by database default
       };
 

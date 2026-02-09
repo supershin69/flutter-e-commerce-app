@@ -1,7 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
-import 'package:image_picker/image_picker.dart';
-import 'dart:io';
+import 'package:intl/intl.dart';
 import 'package:e_commerce_frontend/models/cart_item_model.dart';
 import 'package:e_commerce_frontend/models/user_model.dart';
 import 'package:e_commerce_frontend/services/cart_service.dart';
@@ -37,12 +36,11 @@ class _CheckoutVoucherState extends State<CheckoutVoucher> {
   final TextEditingController _phoneController = TextEditingController();
   final TextEditingController _cityController = TextEditingController();
   final TextEditingController _streetController = TextEditingController();
+  final TextEditingController _transactionIdController = TextEditingController();
   
   // Delivery and Payment options
   String _deliveryMethod = 'Standard'; // 'Standard' or 'Express'
   String _paymentMethod = 'Cash on Delivery'; // 'Cash on Delivery', 'KPay', 'WavePay', or 'AYAPay'
-  File? _receiptFile; // Selected receipt image
-  bool _isUploadingReceipt = false;
   
   bool _isSubmitting = false;
   bool _hasShippingInfo = false;
@@ -61,6 +59,7 @@ class _CheckoutVoucherState extends State<CheckoutVoucher> {
     _phoneController.dispose();
     _cityController.dispose();
     _streetController.dispose();
+    _transactionIdController.dispose();
     super.dispose();
   }
 
@@ -117,69 +116,10 @@ class _CheckoutVoucherState extends State<CheckoutVoucher> {
     });
   }
 
-  Future<String?> _uploadReceipt() async {
-    if (_receiptFile == null) return null;
-
-    try {
-      setState(() {
-        _isUploadingReceipt = true;
-      });
-
-      // Generate unique file name using timestamp
-      final fileName = 'receipt_${DateTime.now().millisecondsSinceEpoch}.jpg';
-      final filePath = 'payment_receipts/$fileName';
-
-      // Upload to Supabase Storage
-      await supabase.storage.from('payment_receipts').upload(
-        filePath,
-        _receiptFile!,
-        fileOptions: const FileOptions(
-          contentType: 'image/jpeg',
-          upsert: false,
-        ),
-      );
-
-      // Get public URL
-      final url = supabase.storage.from('payment_receipts').getPublicUrl(filePath);
-      
-      setState(() {
-        _isUploadingReceipt = false;
-      });
-
-      return url;
-    } catch (e) {
-      setState(() {
-        _isUploadingReceipt = false;
-      });
-      debugPrint('Error uploading receipt: $e');
-      throw Exception('Failed to upload receipt: $e');
-    }
-  }
-
-  Future<void> _pickReceiptImage() async {
-    try {
-      final ImagePicker picker = ImagePicker();
-      final XFile? image = await picker.pickImage(
-        source: ImageSource.gallery,
-        imageQuality: 85,
-      );
-
-      if (image != null) {
-        setState(() {
-          _receiptFile = File(image.path);
-        });
-      }
-    } catch (e) {
-      debugPrint('Error picking image: $e');
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text('Error selecting image: $e'),
-            backgroundColor: Colors.red,
-          ),
-        );
-      }
-    }
+  /// Format currency with comma separators (e.g., 6,000,000 MMK)
+  String _formatCurrency(int amount) {
+    final formatter = NumberFormat('#,###');
+    return '${formatter.format(amount)} MMK';
   }
 
   Future<void> _onConfirmOrder() async {
@@ -203,16 +143,28 @@ class _CheckoutVoucherState extends State<CheckoutVoucher> {
       }
     }
 
-    // Validate receipt upload for mobile banking
+    // Validate transaction ID for mobile banking
     final isMobileBanking = _paymentMethod == 'KPay' || _paymentMethod == 'WavePay' || _paymentMethod == 'AYAPay';
-    if (isMobileBanking && _receiptFile == null) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('Please upload your payment receipt'),
-          backgroundColor: Colors.red,
-        ),
-      );
-      return;
+    if (isMobileBanking) {
+      final transactionId = _transactionIdController.text.trim();
+      if (transactionId.isEmpty) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Please enter the last 6 digits of your Transaction ID'),
+            backgroundColor: Colors.red,
+          ),
+        );
+        return;
+      }
+      if (transactionId.length != 6 || !RegExp(r'^\d+$').hasMatch(transactionId)) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Transaction ID must be exactly 6 digits'),
+            backgroundColor: Colors.red,
+          ),
+        );
+        return;
+      }
     }
 
     // Get final customer details
@@ -278,22 +230,13 @@ class _CheckoutVoucherState extends State<CheckoutVoucher> {
         );
       }
 
-      // Upload receipt if mobile banking payment
-      String? receiptUrl;
-      if (isMobileBanking && _receiptFile != null) {
-        receiptUrl = await _uploadReceipt();
-        if (receiptUrl == null) {
-          throw Exception('Failed to upload payment receipt');
-        }
-      }
-
       // Map payment method to payment_status enum
       // Adjust these values to match your actual payment_status enum values
       String paymentStatus = 'pending';
       if (_paymentMethod == 'Cash on Delivery') {
         paymentStatus = 'pending'; // or 'cod' depending on your enum
       } else if (isMobileBanking) {
-        paymentStatus = receiptUrl != null ? 'paid' : 'pending';
+        paymentStatus = 'pending'; // Will be updated after transaction verification
       }
 
       // Map delivery method to determine status
@@ -303,16 +246,17 @@ class _CheckoutVoucherState extends State<CheckoutVoucher> {
       // Create order (supports both authenticated and guest users)
       OrderModel? order;
       try {
-        // Map payment method to database format
+        // Map payment method to database format (enum values must match exactly)
+        // Database enum expects lowercase with hyphens: 'k-pay', 'wave-pay', 'aya-pay'
         String? dbPaymentMethod;
         if (_paymentMethod == 'Cash on Delivery') {
           dbPaymentMethod = 'cash-on-delivery';
         } else if (_paymentMethod == 'KPay') {
-          dbPaymentMethod = 'KPay';
+          dbPaymentMethod = 'k-pay'; // Lowercase with hyphen
         } else if (_paymentMethod == 'WavePay') {
-          dbPaymentMethod = 'WavePay';
+          dbPaymentMethod = 'wave-pay'; // Lowercase with hyphen
         } else if (_paymentMethod == 'AYAPay') {
-          dbPaymentMethod = 'AYAPay';
+          dbPaymentMethod = 'aya-pay'; // Lowercase with hyphen
         }
 
         // Map delivery method to shipping_method (database column name)
@@ -322,6 +266,9 @@ class _CheckoutVoucherState extends State<CheckoutVoucher> {
         } else if (_deliveryMethod == 'Express') {
           dbShippingMethod = 'express';
         }
+
+        // Get transaction ID if mobile banking is selected
+        final transactionId = isMobileBanking ? _transactionIdController.text.trim() : null;
 
         order = await _checkoutService.createOrder(
           userId: currentUser.id, // Required - user must be logged in
@@ -335,7 +282,7 @@ class _CheckoutVoucherState extends State<CheckoutVoucher> {
           paymentStatus: paymentStatus,
           paymentMethod: dbPaymentMethod,
           shippingMethod: dbShippingMethod, // Note: database uses shipping_method
-          receiptUrl: receiptUrl,
+          transactionId: transactionId,
         );
       } catch (e) {
         // Re-throw with more context
@@ -661,7 +608,7 @@ class _CheckoutVoucherState extends State<CheckoutVoucher> {
                               ),
                             ),
                             Text(
-                              '$_baseTotalPrice MMK',
+                              _formatCurrency(_baseTotalPrice),
                               style: TextStyle(
                                 color: muted,
                                 fontSize: 14,
@@ -681,7 +628,7 @@ class _CheckoutVoucherState extends State<CheckoutVoucher> {
                               ),
                             ),
                             Text(
-                              '$_deliveryFee MMK',
+                              _formatCurrency(_deliveryFee),
                               style: TextStyle(
                                 color: muted,
                                 fontSize: 14,
@@ -702,7 +649,7 @@ class _CheckoutVoucherState extends State<CheckoutVoucher> {
                               ),
                             ),
                             Text(
-                              '$_totalPrice MMK',
+                              _formatCurrency(_totalPrice),
                               style: TextStyle(
                                 color: accent,
                                 fontSize: 24,
@@ -997,6 +944,65 @@ class _CheckoutVoucherState extends State<CheckoutVoucher> {
     );
   }
 
+  Widget _buildTransactionIdInput(Color accent, Color muted, Color border) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Row(
+          children: [
+            Icon(Icons.receipt_long_outlined, size: 20, color: accent),
+            const SizedBox(width: 12),
+            const Text(
+              'Last 6 digits of Transaction ID',
+              style: TextStyle(
+                color: AppColors.textDark,
+                fontSize: 14,
+                fontWeight: FontWeight.w600,
+              ),
+            ),
+          ],
+        ),
+        const SizedBox(height: 8),
+        TextFormField(
+          controller: _transactionIdController,
+          keyboardType: TextInputType.number,
+          maxLength: 6,
+          decoration: InputDecoration(
+            hintText: "Enter the ID from your bank's success screen",
+            hintStyle: TextStyle(color: muted),
+            border: OutlineInputBorder(
+              borderRadius: BorderRadius.circular(8),
+              borderSide: BorderSide(color: accent),
+            ),
+            enabledBorder: OutlineInputBorder(
+              borderRadius: BorderRadius.circular(8),
+              borderSide: BorderSide(color: accent),
+            ),
+            focusedBorder: OutlineInputBorder(
+              borderRadius: BorderRadius.circular(8),
+              borderSide: BorderSide(color: accent, width: 2),
+            ),
+            contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
+            counterText: '',
+          ),
+          style: TextStyle(color: AppColors.textDark),
+          validator: (value) {
+            final isMobileBanking = _paymentMethod == 'KPay' || _paymentMethod == 'WavePay' || _paymentMethod == 'AYAPay';
+            if (isMobileBanking) {
+              if (value == null || value.trim().isEmpty) {
+                return 'Please enter the last 6 digits of Transaction ID';
+              }
+              if (value.trim().length != 6 || !RegExp(r'^\d+$').hasMatch(value.trim())) {
+                return 'Transaction ID must be exactly 6 digits';
+              }
+            }
+            return null;
+          },
+        ),
+      ],
+    );
+  }
+
   Widget _buildOrderItem(CartItem item, Color muted) {
     return Padding(
       padding: const EdgeInsets.all(16),
@@ -1064,7 +1070,7 @@ class _CheckoutVoucherState extends State<CheckoutVoucher> {
                       ),
                     ),
                     Text(
-                      '${item.price} MMK',
+                      _formatCurrency(item.price),
                       style: TextStyle(
                         color: Colors.brown.shade300,
                         fontSize: 15,
@@ -1093,7 +1099,7 @@ class _CheckoutVoucherState extends State<CheckoutVoucher> {
         children: [
           _buildDeliveryOption(
             'Standard Delivery',
-            '3,000 MMK',
+            _formatCurrency(3000),
             'Standard',
             Icons.local_shipping_outlined,
             card,
@@ -1104,7 +1110,7 @@ class _CheckoutVoucherState extends State<CheckoutVoucher> {
           const SizedBox(height: 12),
           _buildDeliveryOption(
             'Express Delivery',
-            '5,000 MMK',
+            _formatCurrency(5000),
             'Express',
             Icons.flash_on_outlined,
             card,
@@ -1251,7 +1257,7 @@ class _CheckoutVoucherState extends State<CheckoutVoucher> {
               muted,
               localSetState,
             ),
-          // Show QR code and receipt upload if mobile banking is selected
+          // Show QR code and transaction ID input if mobile banking is selected
           if (isMobileBanking) ...[
             const SizedBox(height: 16),
             Divider(color: border),
@@ -1327,47 +1333,8 @@ class _CheckoutVoucherState extends State<CheckoutVoucher> {
                     ),
                   ),
                   const SizedBox(height: 16),
-                  // Receipt upload section
-                  OutlinedButton.icon(
-                    onPressed: _isUploadingReceipt ? null : _pickReceiptImage,
-                    icon: _isUploadingReceipt
-                        ? const SizedBox(
-                            width: 16,
-                            height: 16,
-                            child: CircularProgressIndicator(strokeWidth: 2),
-                          )
-                        : const Icon(Icons.upload_file),
-                    label: Text(_receiptFile == null ? 'Upload Receipt' : 'Change Receipt'),
-                    style: OutlinedButton.styleFrom(
-                      foregroundColor: accent,
-                      side: BorderSide(color: accent),
-                      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-                    ),
-                  ),
-                  if (_receiptFile != null) ...[
-                    const SizedBox(height: 12),
-                    Container(
-                      padding: const EdgeInsets.all(8),
-                      decoration: BoxDecoration(
-                        color: Colors.green.withOpacity(0.1),
-                        borderRadius: BorderRadius.circular(6),
-                      ),
-                      child: Row(
-                        mainAxisAlignment: MainAxisAlignment.center,
-                        children: [
-                          const Icon(Icons.check_circle, size: 16, color: Colors.green),
-                          const SizedBox(width: 8),
-                          Text(
-                            'Receipt uploaded',
-                            style: TextStyle(
-                              color: Colors.green.shade700,
-                              fontSize: 12,
-                            ),
-                          ),
-                        ],
-                      ),
-                    ),
-                  ],
+                  // Transaction ID input field
+                  _buildTransactionIdInput(accent, muted, border),
                 ],
               ),
             ),
@@ -1396,17 +1363,17 @@ class _CheckoutVoucherState extends State<CheckoutVoucher> {
         if (localSetState != null) {
           localSetState(() {
             _paymentMethod = value;
-            // Clear receipt if switching away from mobile banking
+            // Clear transaction ID if switching away from mobile banking
             if (value == 'Cash on Delivery') {
-              _receiptFile = null;
+              _transactionIdController.clear();
             }
           });
         } else {
           setState(() {
             _paymentMethod = value;
-            // Clear receipt if switching away from mobile banking
+            // Clear transaction ID if switching away from mobile banking
             if (value == 'Cash on Delivery') {
-              _receiptFile = null;
+              _transactionIdController.clear();
             }
           });
         }

@@ -238,8 +238,8 @@ class _OrderHistoryScreenState extends State<OrderHistoryScreen> {
                           const SizedBox(height: 4),
                           Text(
                             _formatOrderId(order.id),
-                            style: TextStyle(
-                              color: accent,
+                            style: const TextStyle(
+                              color: Color(0xFF7B7BC9),
                               fontSize: 16,
                               fontWeight: FontWeight.bold,
                               letterSpacing: 0.5,

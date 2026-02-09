@@ -71,6 +71,20 @@ class OrderDetailScreen extends StatelessWidget {
     }
   }
 
+  /// Copy transaction ID to clipboard and show toast
+  Future<void> _copyTransactionIdToClipboard(BuildContext context, String transactionId) async {
+    await Clipboard.setData(ClipboardData(text: transactionId));
+    if (context.mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Transaction ID copied to clipboard'),
+          duration: Duration(seconds: 2),
+          behavior: SnackBarBehavior.floating,
+        ),
+      );
+    }
+  }
+
   /// Format currency with comma separators (e.g., 6,000,000 MMK)
   String _formatCurrency(int amount) {
     final formatter = NumberFormat('#,###');
@@ -137,8 +151,8 @@ class OrderDetailScreen extends StatelessWidget {
                               children: [
                                 Text(
                                   _formatOrderId(order.id),
-                                  style: TextStyle(
-                                    color: accent,
+                                  style: const TextStyle(
+                                    color: Color(0xFF7B7BC9),
                                     fontSize: 20,
                                     fontWeight: FontWeight.bold,
                                     letterSpacing: 0.5,
@@ -146,7 +160,7 @@ class OrderDetailScreen extends StatelessWidget {
                                 ),
                                 const SizedBox(width: 8),
                                 IconButton(
-                                  icon: Icon(Icons.copy, size: 18, color: accent),
+                                  icon: const Icon(Icons.copy, size: 18, color: Color(0xFF7B7BC9)),
                                   padding: EdgeInsets.zero,
                                   constraints: const BoxConstraints(),
                                   onPressed: () => _copyOrderIdToClipboard(context, order.id),
@@ -290,6 +304,65 @@ class OrderDetailScreen extends StatelessWidget {
                 ],
               ),
             ),
+
+            // Payment Verification - Only show if transaction ID exists
+            if (order.transactionId != null && order.transactionId!.isNotEmpty) ...[
+              const SizedBox(height: 20),
+              _buildSectionHeader('Payment Verification'),
+              const SizedBox(height: 12),
+              Container(
+                padding: const EdgeInsets.all(20),
+                decoration: BoxDecoration(
+                  color: Colors.grey.withOpacity(0.05),
+                  borderRadius: BorderRadius.circular(16),
+                ),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Row(
+                      children: [
+                        Icon(Icons.receipt_long_outlined, size: 18, color: accent),
+                        const SizedBox(width: 12),
+                        const Expanded(
+                          child: Text(
+                            'Transaction ID',
+                            style: TextStyle(
+                              color: AppColors.textDark,
+                              fontSize: 14,
+                              fontWeight: FontWeight.w600,
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 12),
+                    Row(
+                      children: [
+                        Expanded(
+                          child: Text(
+                            order.transactionId!,
+                            style: TextStyle(
+                              color: accent,
+                              fontSize: 18,
+                              fontWeight: FontWeight.bold,
+                              letterSpacing: 0.5,
+                            ),
+                          ),
+                        ),
+                        const SizedBox(width: 8),
+                        IconButton(
+                          icon: Icon(Icons.copy, size: 18, color: accent),
+                          padding: EdgeInsets.zero,
+                          constraints: const BoxConstraints(),
+                          onPressed: () => _copyTransactionIdToClipboard(context, order.transactionId!),
+                          tooltip: 'Copy Transaction ID',
+                        ),
+                      ],
+                    ),
+                  ],
+                ),
+              ),
+            ],
 
             const SizedBox(height: 24),
 
