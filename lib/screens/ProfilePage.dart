@@ -1,6 +1,6 @@
 import 'package:e_commerce_frontend/screens/NotificationPage.dart';
-import 'package:e_commerce_frontend/screens/order_page.dart';
 import 'package:e_commerce_frontend/screens/wishlist_page.dart';
+import 'package:e_commerce_frontend/features/personalization/screens/orders/orders.dart';
 import 'package:flutter/material.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
@@ -104,7 +104,7 @@ class _ProfilePageState extends State<ProfilePage> {
                       icon: Icons.shopping_bag_outlined,
                       title: 'My Orders',
                       onTap: () {
-                         Navigator.push(context, MaterialPageRoute(builder: (_) => OrderPage()));
+                         Navigator.push(context, MaterialPageRoute(builder: (_) => const OrderHistoryScreen()));
                       },
                     ),
                     _buildDivider(),
