@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import '../models/cart_item_model.dart';
 import '../services/cart_service.dart';
 import '../utils/colors.dart';
+import 'package:e_commerce_frontend/features/shop/screens/checkout/checkout_voucher.dart';
 
 class CartPage extends StatefulWidget {
   const CartPage({super.key});
@@ -252,10 +253,10 @@ class _CartPageState extends State<CartPage> {
                       width: double.infinity,
                       child: ElevatedButton(
                         onPressed: () {
-                          // TODO: Navigate to checkout page
-                          ScaffoldMessenger.of(context).showSnackBar(
-                            const SnackBar(
-                              content: Text('Checkout functionality coming soon!'),
+                          // Navigate to checkout voucher page
+                          Navigator.of(context).push(
+                            MaterialPageRoute(
+                              builder: (context) => const CheckoutVoucher(),
                             ),
                           );
                         },

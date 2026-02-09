@@ -9,6 +9,7 @@ import '../all_brands_page.dart';
 import '../cart_page.dart';
 import '../../services/cart_service.dart';
 import '../../utils/colors.dart';
+import 'package:e_commerce_frontend/features/shop/screens/store/store_search_bar.dart';
 
 class StorePage extends StatefulWidget {
   const StorePage({super.key});
@@ -18,7 +19,6 @@ class StorePage extends StatefulWidget {
 }
 
 class _StorePageState extends State<StorePage> {
-  final _searchController = TextEditingController();
   final supabase = Supabase.instance.client;
   final CartService _cartService = CartService();
 
@@ -68,6 +68,8 @@ class _StorePageState extends State<StorePage> {
   Future<void> _loadData() async {
     setState(() {
       _categoriesFuture = _fetchCategories();
+      // Load static featured brands once (not category-dependent)
+      _featuredBrandsFuture = _fetchAllFeaturedBrands();
     });
 
     final categories = await _categoriesFuture;
@@ -80,7 +82,6 @@ class _StorePageState extends State<StorePage> {
       
       setState(() {
         _selectedCategoryId = phoneCategory.id;
-        _featuredBrandsFuture = _fetchFeaturedBrands(phoneCategory.id);
         _brandProductsFuture = _fetchBrandProducts(phoneCategory.id);
       });
     }
@@ -129,6 +130,96 @@ class _StorePageState extends State<StorePage> {
           .toList();
     } catch (e) {
       debugPrint('Error fetching featured brands: $e');
+      return [];
+    }
+  }
+
+  Future<List<BrandWithCount>> _fetchAllFeaturedBrands() async {
+    try {
+      // Fetch brands from product_catalog (same source as products)
+      final catalogData = await supabase
+          .from('product_catalog')
+          .select('brand_name');
+
+      if (catalogData.isEmpty) {
+        debugPrint('No products found in product_catalog');
+        return [];
+      }
+
+      // Count products per brand
+      final brandCounts = <String, int>{};
+      for (final item in catalogData) {
+        final brandName = item['brand_name'] as String?;
+        if (brandName != null && brandName.isNotEmpty) {
+          brandCounts[brandName] = (brandCounts[brandName] ?? 0) + 1;
+        }
+      }
+
+      if (brandCounts.isEmpty) {
+        debugPrint('No brands found in product_catalog');
+        return [];
+      }
+
+      // Fetch all brand details from brands table at once
+      final brandNames = brandCounts.keys.toList();
+      final brandsList = <BrandWithCount>[];
+      
+      try {
+        // Fetch all brands, then match by name in Dart (avoids .in_ API issues)
+        final allBrandsData = await supabase
+            .from('brands')
+            .select('id, name, logo_url');
+
+        // Create a map of brand name to brand data for quick lookup
+        final brandMap = <String, Brand>{};
+        for (final brandData in allBrandsData) {
+          final brand = Brand.fromMap(Map<String, dynamic>.from(brandData));
+          brandMap[brand.name] = brand;
+        }
+
+        // Create BrandWithCount for each brand that appears in product_catalog
+        for (final brandName in brandNames) {
+          final brand = brandMap[brandName];
+          if (brand != null) {
+            brandsList.add(BrandWithCount(
+              brand: brand,
+              productCount: brandCounts[brandName] ?? 0,
+            ));
+          } else {
+            // If brand doesn't exist in brands table, create a placeholder
+            debugPrint('Brand "$brandName" not found in brands table, creating placeholder');
+            brandsList.add(BrandWithCount(
+              brand: Brand(
+                id: brandName, // Use name as ID fallback
+                name: brandName,
+                logoUrl: '',
+              ),
+              productCount: brandCounts[brandName] ?? 0,
+            ));
+          }
+        }
+      } catch (e) {
+        debugPrint('Error fetching brands from brands table: $e');
+        // Fallback: create brands from names only
+        for (final brandName in brandNames) {
+          brandsList.add(BrandWithCount(
+            brand: Brand(
+              id: brandName,
+              name: brandName,
+              logoUrl: '',
+            ),
+            productCount: brandCounts[brandName] ?? 0,
+          ));
+        }
+      }
+
+      // Sort by product count descending to get top brands
+      brandsList.sort((a, b) => b.productCount.compareTo(a.productCount));
+      
+      return brandsList.take(4).toList();
+    } catch (e) {
+      debugPrint('Error fetching all featured brands: $e');
+      debugPrint('Stack trace: ${StackTrace.current}');
       return [];
     }
   }
@@ -198,7 +289,7 @@ class _StorePageState extends State<StorePage> {
       setState(() {
         _activeTabIndex = index;
         _selectedCategoryId = category.id;
-        _featuredBrandsFuture = _fetchFeaturedBrands(category.id);
+        // Featured brands remain static - only update brand products for the selected category
         _brandProductsFuture = _fetchBrandProducts(category.id);
       });
     }
@@ -207,7 +298,6 @@ class _StorePageState extends State<StorePage> {
   @override
   void dispose() {
     _cartRefreshTimer?.cancel();
-    _searchController.dispose();
     super.dispose();
   }
 
@@ -266,34 +356,7 @@ class _StorePageState extends State<StorePage> {
             SliverPadding(
               padding: const EdgeInsets.fromLTRB(16, 14, 16, 0),
               sliver: SliverToBoxAdapter(
-                child: Container(
-                  decoration: BoxDecoration(
-                    color: card,
-                    borderRadius: BorderRadius.circular(14),
-                    border: Border.all(color: border),
-                    boxShadow: [
-                      BoxShadow(
-                        color: Colors.black.withOpacity(0.05),
-                        blurRadius: 4,
-                        offset: const Offset(0, 2),
-                      ),
-                    ],
-                  ),
-                  child: TextField(
-                    controller: _searchController,
-                    style: const TextStyle(color: AppColors.textDark),
-                    decoration: InputDecoration(
-                      hintText: 'Search in Store',
-                      hintStyle: const TextStyle(color: muted),
-                      prefixIcon: const Icon(Icons.search, color: muted),
-                      border: InputBorder.none,
-                      contentPadding: const EdgeInsets.symmetric(
-                        horizontal: 14,
-                        vertical: 14,
-                      ),
-                    ),
-                  ),
-                ),
+                child: const StoreSearchBar(),
               ),
             ),
 
@@ -597,7 +660,7 @@ class _CartButton extends StatelessWidget {
               child: Container(
                 padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
                 decoration: BoxDecoration(
-                  color: Colors.brown.shade300,
+                  color: Colors.red,
                   borderRadius: BorderRadius.circular(10),
                   border: Border.all(color: Colors.white, width: 2),
                 ),

@@ -191,7 +191,7 @@ class _HomePageState extends State<HomePage> {
                   children: [
                     // Welcome Text in Burmese
                     const Text(
-                      'Digital Hub မှ ကြိုဆိုပါတယ်',
+                      'WELCOME TO DIGITAL HUB',
                       style: TextStyle(
                         color: Colors.white,
                         fontSize: 18,
