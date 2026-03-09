@@ -28,6 +28,7 @@ class CheckoutService {
     String? paymentMethod,
     String? shippingMethod, // Note: database uses shipping_method, not delivery_method
     String? transactionId, // Transaction ID from mobile banking (last 6 digits)
+    String? receiptUrl, // Public URL of uploaded payment receipt image
   }) async {
     try {
       // Generate UUID if not provided
@@ -43,6 +44,12 @@ class CheckoutService {
         'name': customerName,
         'items': items.map((item) => item.toMap()).toList(),
       };
+
+      // Attach receipt URL to shipping_address JSONB if available so it can be
+      // accessed via OrderModel.receiptUrl for display in the UI.
+      if (receiptUrl != null && receiptUrl.isNotEmpty) {
+        shippingAddressJson['receipt_url'] = receiptUrl;
+      }
 
       // Create order data matching the exact Supabase schema
       final orderData = {

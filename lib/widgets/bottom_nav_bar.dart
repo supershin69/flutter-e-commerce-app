@@ -1,4 +1,3 @@
-import 'package:e_commerce_frontend/utils/colors.dart';
 import 'package:flutter/material.dart';
 
 class AppBottomNavBar extends StatelessWidget {
@@ -18,7 +17,7 @@ class AppBottomNavBar extends StatelessWidget {
         color: Colors.brown.shade300,
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withOpacity(0.1),
+            color: Colors.black.withAlpha(26),
             blurRadius: 10,
             offset: const Offset(0, -2),
           ),
@@ -44,7 +43,7 @@ class AppBottomNavBar extends StatelessWidget {
                 onTap: () => onTap(1),
               ),
               _NavItem(
-                icon: Icons.favorite_rounded,
+                icon: currentIndex == 2 ? Icons.favorite : Icons.favorite_border,
                 label: 'Wishlist',
                 isActive: currentIndex == 2,
                 onTap: () => onTap(2),
@@ -104,7 +103,7 @@ class _NavItem extends StatelessWidget {
                         bottom: -5,
                         child: Container(
                           decoration: BoxDecoration(
-                            color: Colors.white.withOpacity(0.2),
+                            color: Colors.white.withAlpha(51),
                             shape: BoxShape.circle,
                           ),
                         ),
@@ -112,7 +111,7 @@ class _NavItem extends StatelessWidget {
                     // Icon
                     Icon(
                       icon,
-                      color: isActive ? Colors.white : Colors.white.withOpacity(0.6),
+                      color: isActive ? Colors.white : Colors.white.withAlpha(153),
                       size: isActive ? 24 : 20,
                     ),
                   ],
@@ -122,7 +121,7 @@ class _NavItem extends StatelessWidget {
                 Text(
                   label,
                   style: TextStyle(
-                    color: isActive ? Colors.white : Colors.white.withOpacity(0.7),
+                    color: isActive ? Colors.white : Colors.white.withAlpha(179),
                     fontSize: isActive ? 11 : 10,
                     fontWeight: isActive ? FontWeight.w700 : FontWeight.w500,
                     letterSpacing: 0.1,

@@ -1,11 +1,11 @@
 import 'package:e_commerce_frontend/screens/brands_page.dart';
 import 'package:flutter/material.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
-import '../models/category_model.dart';
+import 'package:e_commerce_frontend/models/category_model.dart';
 
 
 class CategoryPage extends StatefulWidget {
-  CategoryPage({super.key});
+  const CategoryPage({super.key});
 
   @override
   State<StatefulWidget> createState() => _CategoryState();
@@ -14,12 +14,12 @@ class CategoryPage extends StatefulWidget {
 class _CategoryState extends State<CategoryPage> {
   final supabase = Supabase.instance.client;
 
-  late Future<List<Category>> _CategoryFuture;
+  late Future<List<Category>> _categoryFuture;
 
   @override
   void initState() {
     super.initState();
-    _CategoryFuture = fetchCategories();
+    _categoryFuture = fetchCategories();
   }
 
   Future<List<Category>> fetchCategories() async {
@@ -29,7 +29,7 @@ class _CategoryState extends State<CategoryPage> {
 
   Future<void> _onRefresh() async {
     setState(() {
-      _CategoryFuture = fetchCategories();
+      _categoryFuture = fetchCategories();
     });
   }
 
@@ -39,7 +39,7 @@ class _CategoryState extends State<CategoryPage> {
       body: RefreshIndicator(
         onRefresh: _onRefresh,
         child: FutureBuilder<List<Category>>(
-          future: _CategoryFuture,
+          future: _categoryFuture,
           builder: (context, snapshot) {
             // Loading
             if (snapshot.connectionState == ConnectionState.waiting) {

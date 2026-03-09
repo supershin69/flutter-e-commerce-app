@@ -5,7 +5,7 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 import '../models/brand_model.dart';
 
 class BrandsPage extends StatefulWidget{
-  BrandsPage({super.key, required this.categoryId, required this.categoryName });
+  const BrandsPage({super.key, required this.categoryId, required this.categoryName });
 
   final String categoryId;
   final String categoryName;
@@ -17,32 +17,39 @@ class BrandsPage extends StatefulWidget{
 class _BrandState extends State<BrandsPage> {
   final supabase = Supabase.instance.client;
 
-  late Future<List<Brand>> _BrandFuture;
+  late Future<List<Brand>> _brandFuture;
 
   @override
   void initState() {
     super.initState();
-    _BrandFuture = fetchBrands();
+    _brandFuture = fetchBrands();
   }
 
   Future<List<Brand>> fetchBrands() async {
-    final data = await supabase.from('products')
-                                .select('brand_id, brands(id, name, logo_url)')
-                                .not('brand_id', 'is', null)
-                                .eq('category_id', widget.categoryId)
-                                .eq('is_archived', false);
+    final data = await supabase
+        .from('product_catalog')
+        .select('brand_name')
+        .eq('category_name', widget.categoryName);
     
     final rows = List<Map<String, dynamic>>.from(data);
+    final brandNames = rows
+        .map((row) => row['brand_name']?.toString() ?? '')
+        .where((name) => name.isNotEmpty)
+        .toSet();
 
     final brands = <String, Brand>{};
 
-    for (final row in rows) {
-      final brandMap = row['brands'];
-      if (brandMap != null) {
-        final brand = Brand.fromMap(Map<String, dynamic>.from(brandMap));
-        
-        brands[brand.id] = brand;
+    for (final brandName in brandNames) {
+      final brandData = await supabase
+          .from('brands')
+          .select('id, name, logo_url')
+          .eq('name', brandName)
+          .maybeSingle();
+      if (brandData == null) {
+        continue;
       }
+      final brand = Brand.fromMap(Map<String, dynamic>.from(brandData));
+      brands[brand.id] = brand;
     }
     debugPrint(data.toString());
 
@@ -50,9 +57,11 @@ class _BrandState extends State<BrandsPage> {
   }
 
   Future<void> _onRefresh() async {
+    final future = fetchBrands();
     setState(() {
-      _BrandFuture = fetchBrands();
+      _brandFuture = future;
     });
+    await future;
   }
 
 
@@ -67,27 +76,45 @@ class _BrandState extends State<BrandsPage> {
       ),
       body: RefreshIndicator(
         onRefresh: _onRefresh,
+        color: Colors.brown.shade300,
         child: FutureBuilder<List<Brand>>(
-          future: _BrandFuture,
+          future: _brandFuture,
           builder: (context, snapshot) {
             if (snapshot.connectionState == ConnectionState.waiting) {
               return const Center(child: CircularProgressIndicator());
             }
         
             if (snapshot.hasError) {
-              return Center(child: Text("Error ${snapshot.error}", style: TextStyle(color: Colors.red),));
+              return SingleChildScrollView(
+                physics: const AlwaysScrollableScrollPhysics(),
+                child: SizedBox(
+                  height: MediaQuery.of(context).size.height - 200,
+                  child: Center(
+                    child: Text(
+                      "Error ${snapshot.error}",
+                      style: const TextStyle(color: Colors.red),
+                    ),
+                  ),
+                ),
+              );
             }
         
             final brands = snapshot.data!;
         
             if (brands.isEmpty) {
-              return Center(
-                child: Text(
-                  "No ${widget.categoryName} available.",
-                  softWrap: true,
-                  style: TextStyle(
-                    fontSize: 16,
-                    fontWeight: FontWeight.w500,
+              return SingleChildScrollView(
+                physics: const AlwaysScrollableScrollPhysics(),
+                child: SizedBox(
+                  height: MediaQuery.of(context).size.height - 200,
+                  child: Center(
+                    child: Text(
+                      "No ${widget.categoryName} available.",
+                      softWrap: true,
+                      style: const TextStyle(
+                        fontSize: 16,
+                        fontWeight: FontWeight.w500,
+                      ),
+                    ),
                   ),
                 ),
               );
@@ -95,7 +122,8 @@ class _BrandState extends State<BrandsPage> {
         
             return GridView.builder(
               padding: const EdgeInsets.all(10),
-              gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
+              physics: const AlwaysScrollableScrollPhysics(),
+              gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
                 crossAxisCount: 2,
                 crossAxisSpacing: 10,
                 mainAxisSpacing: 10

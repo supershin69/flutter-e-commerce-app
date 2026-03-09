@@ -1,5 +1,5 @@
-import 'package:e_commerce_frontend/screens/product_detail_page.dart';
 import 'package:e_commerce_frontend/utils/colors.dart';
+import 'package:e_commerce_frontend/widgets/product_card.dart';
 import 'package:flutter/material.dart';
 import '../models/product_model.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
@@ -11,7 +11,7 @@ class ProductsPage extends StatefulWidget{
     final String brandId;
     final String brandName;
 
-    ProductsPage ({
+    const ProductsPage ({
       super.key,
       required this.categoryId,
       required this.categoryName,
@@ -29,12 +29,12 @@ class _ProductState extends State<ProductsPage> {
 
     final supabase = Supabase.instance.client;
 
-    late Future<List<Product>> _ProductFuture;
+    late Future<List<Product>> _productFuture;
 
     @override
     void initState() {
       super.initState();
-      _ProductFuture = fetchProducts();
+      _productFuture = fetchProducts();
     }
 
     Future <List<Product>> fetchProducts() async {
@@ -49,9 +49,11 @@ class _ProductState extends State<ProductsPage> {
     }
 
     Future<void> _onRefresh() async {
+      final future = fetchProducts();
       setState(() {
-        _ProductFuture = fetchProducts();
+        _productFuture = future;
       });
+      await future;
     }
 
 
@@ -66,131 +68,58 @@ class _ProductState extends State<ProductsPage> {
       ),
       body: RefreshIndicator(
         onRefresh: _onRefresh,
+        color: Colors.brown.shade300,
         child: FutureBuilder(
-          future: _ProductFuture, 
+          future: _productFuture, 
           builder: (context, snapshot) {
             if (snapshot.connectionState == ConnectionState.waiting) {
               return const Center(child: CircularProgressIndicator());
             }
         
             if (snapshot.hasError) {
-              return Center(
-                child: Text(
-                  "Error ${snapshot.error}",
-                  style: TextStyle(
-                    color: Colors.red
+              return SingleChildScrollView(
+                physics: const AlwaysScrollableScrollPhysics(),
+                child: SizedBox(
+                  height: MediaQuery.of(context).size.height - 200,
+                  child: Center(
+                    child: Text(
+                      "Error ${snapshot.error}",
+                      style: const TextStyle(
+                        color: Colors.red
+                      ),
+                    ),
                   ),
                 ),
               );
             }
         
             final products = snapshot.data!;
+            
+            if (products.isEmpty) {
+              return SingleChildScrollView(
+                physics: const AlwaysScrollableScrollPhysics(),
+                child: SizedBox(
+                  height: MediaQuery.of(context).size.height - 200,
+                  child: const Center(
+                    child: Text("No products found"),
+                  ),
+                ),
+              );
+            }
         
             return GridView.builder(
-              padding: EdgeInsets.all(10),
-              gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
+              padding: const EdgeInsets.all(16),
+              physics: const AlwaysScrollableScrollPhysics(),
+              gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
                 crossAxisCount: 2,
-                mainAxisSpacing: 10,
-                crossAxisSpacing: 10,
-                childAspectRatio: 0.7
+                crossAxisSpacing: 16,
+                mainAxisSpacing: 16,
+                childAspectRatio: 0.6,
               ), 
-              itemCount: products.length,
+                itemCount: products.length,
               itemBuilder: (context, index) {
                 final product = products[index];
-                return InkWell(
-                  borderRadius: BorderRadius.circular(16),
-                  onTap: () {
-                    // Navigate to product details page
-                    
-                    Navigator.of(context).push(
-                      MaterialPageRoute(builder: (context) => ProductDetails(product: product))
-                    );
-                  },
-                  child: Card(
-                    elevation: 4,
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(16)
-                    ),
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        // Image
-                        Expanded(
-                          child: ClipRRect(
-                            borderRadius: BorderRadius.vertical(
-                              top: Radius.circular(16)
-                            ),
-                            child: Container(
-                              color: Colors.white,
-                              child: Image.network(
-                                loadingBuilder: (context, child, loadingProgress) {
-                                  if (loadingProgress == null) return child;
-                                  return Center(
-                                    child: CircularProgressIndicator(
-                                      value: loadingProgress.expectedTotalBytes != null
-                                          ? loadingProgress.cumulativeBytesLoaded /
-                                              loadingProgress.expectedTotalBytes!
-                                          : null,
-                                    ),
-                                  );
-                                },
-                                
-                                product.images.isNotEmpty 
-                                  ? product.images[0].url  // Access .url here
-                                  : 'https://via.placeholder.com/150', // Placeholder if images list is empty
-                                fit: BoxFit.contain,
-                                width: double.infinity,
-                                errorBuilder: (context, error, stackTrace) =>
-                                    const Center(child: Icon(Icons.error_outline, color: Colors.grey)),
-                              ),
-                            ),
-                          )
-                        ),
-                        // Product Name
-                        Container(
-                          color: Colors.white,
-                          width: double.infinity,
-                          padding: EdgeInsets.all(10),
-                          child: Text(
-                            product.name,
-                            style: TextStyle(
-                              fontWeight: FontWeight.bold,
-                              fontSize: 14
-                            ),
-                          ),
-                        ),
-                        // Product Price
-                        Container(
-                          padding: EdgeInsets.all(10),
-                          width: double.infinity,
-                          decoration: BoxDecoration(
-                            color: Colors.white,
-                            borderRadius: BorderRadius.vertical(
-                              bottom: Radius.circular(16)
-                            )
-                          ),
-                          child: product.minPrice == product.maxPrice ?
-                            Text(
-                              '${product.minPrice} MMK',
-                              style: TextStyle(
-                                color: AppColors.matchaGreen,
-                                fontWeight: FontWeight.bold,
-                                fontSize: 14
-                              ),
-                            ) : Text(
-                              '${product.minPrice} - ${product.maxPrice} MMK',
-                              style: TextStyle(
-                                color: AppColors.matchaGreen,
-                                fontWeight: FontWeight.bold,
-                                fontSize: 14
-                              ),
-                            ),
-                        ),
-                      
-                      ],
-                    ),
-                  ),
-                );
+                return ProductCard(product: product);
               }
             );
           }

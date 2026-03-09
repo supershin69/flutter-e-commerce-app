@@ -1,5 +1,4 @@
-import 'package:e_commerce_frontend/screens/ProfilePage.dart';
-import 'package:e_commerce_frontend/screens/flash_screen.dart';
+import 'package:e_commerce_frontend/screens/profile_page.dart';
 import 'package:flutter/material.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:flutter_svg/flutter_svg.dart';

@@ -16,7 +16,6 @@ class OrderModel {
   final String? customerName; // Separate column in database
   final String? paymentMethod; // Separate column in database
   final String? shippingMethod; // Separate column in database (not delivery_method)
-  final String? transactionId; // Transaction ID from mobile banking (maps to transaction_id column)
   final DateTime createdAt; // When order was created
 
   // Convenience getters for shipping_address JSONB fields
@@ -25,7 +24,7 @@ class OrderModel {
   String get street => shippingAddress['street'] as String? ?? '';
   
   // Additional optional fields that may be stored in shipping_address
-  String get address => '${street}, ${city}'; // Combined for display
+  String get address => '$street, $city'; // Combined for display
   String? get phoneNumber => shippingAddress['phone'] as String?;
   List<CartItem> get items {
     final itemsList = shippingAddress['items'] as List<dynamic>?;
@@ -34,6 +33,7 @@ class OrderModel {
         .map((item) => CartItem.fromMap(item as Map<String, dynamic>))
         .toList();
   }
+  String? get receiptUrl => shippingAddress['receipt_url'] as String?;
 
   // Computed properties for backward compatibility
   DateTime get orderDate => createdAt;
@@ -49,7 +49,6 @@ class OrderModel {
     this.customerName,
     this.paymentMethod,
     this.shippingMethod,
-    this.transactionId,
     required this.createdAt,
   });
 
@@ -65,7 +64,6 @@ class OrderModel {
       'customer_name': customerName,
       'payment_method': paymentMethod,
       'shipping_method': shippingMethod,
-      'transaction_id': transactionId,
       'created_at': createdAt.toIso8601String(),
     };
   }
@@ -90,7 +88,6 @@ class OrderModel {
       customerName: json['customer_name'] as String?,
       paymentMethod: json['payment_method'] as String?,
       shippingMethod: json['shipping_method'] as String?,
-      transactionId: json['transaction_id'] as String?,
       createdAt: json['created_at'] != null
           ? DateTime.parse(json['created_at'] as String)
           : DateTime.now(),
@@ -124,7 +121,6 @@ class OrderModel {
       customerName: map['customer_name'] as String?,
       paymentMethod: map['payment_method'] as String?,
       shippingMethod: map['shipping_method'] as String?,
-      transactionId: map['transaction_id'] as String?,
       createdAt: map['created_at'] != null
           ? DateTime.parse(map['created_at'] as String)
           : DateTime.now(),
@@ -142,7 +138,6 @@ class OrderModel {
     String? customerName,
     String? paymentMethod,
     String? shippingMethod,
-    String? transactionId,
     DateTime? createdAt,
   }) {
     return OrderModel(
@@ -155,7 +150,6 @@ class OrderModel {
       customerName: customerName ?? this.customerName,
       paymentMethod: paymentMethod ?? this.paymentMethod,
       shippingMethod: shippingMethod ?? this.shippingMethod,
-      transactionId: transactionId ?? this.transactionId,
       createdAt: createdAt ?? this.createdAt,
     );
   }

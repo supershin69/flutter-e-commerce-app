@@ -85,6 +85,20 @@ class OrderDetailScreen extends StatelessWidget {
     }
   }
 
+  /// Copy receipt URL to clipboard and show toast
+  Future<void> _copyReceiptUrlToClipboard(BuildContext context, String receiptUrl) async {
+    await Clipboard.setData(ClipboardData(text: receiptUrl));
+    if (context.mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Receipt URL copied to clipboard'),
+          duration: Duration(seconds: 2),
+          behavior: SnackBarBehavior.floating,
+        ),
+      );
+    }
+  }
+
   /// Format currency with comma separators (e.g., 6,000,000 MMK)
   String _formatCurrency(int amount) {
     final formatter = NumberFormat('#,###');
@@ -187,11 +201,11 @@ class OrderDetailScreen extends StatelessWidget {
                           Container(
                             padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
                             decoration: BoxDecoration(
-                              color: _getStatusColor(order.status).withOpacity(0.1),
+                              color: _getStatusColor(order.status).withAlpha(25),
                               borderRadius: BorderRadius.circular(20),
                               border: Border.all(
-                                color: _getStatusColor(order.status).withOpacity(0.3),
-                                width: 1.5,
+                                color: _getStatusColor(order.status),
+                                width: 1,
                               ),
                             ),
                             child: Text(
@@ -305,8 +319,8 @@ class OrderDetailScreen extends StatelessWidget {
               ),
             ),
 
-            // Payment Verification - Only show if transaction ID exists
-            if (order.transactionId != null && order.transactionId!.isNotEmpty) ...[
+            // Payment Verification - Only show if receipt URL exists
+            if (order.receiptUrl != null && order.receiptUrl!.isNotEmpty) ...[
               const SizedBox(height: 20),
               _buildSectionHeader('Payment Verification'),
               const SizedBox(height: 12),
@@ -325,7 +339,7 @@ class OrderDetailScreen extends StatelessWidget {
                         const SizedBox(width: 12),
                         const Expanded(
                           child: Text(
-                            'Transaction ID',
+                            'Payment Receipt',
                             style: TextStyle(
                               color: AppColors.textDark,
                               fontSize: 14,
@@ -340,7 +354,7 @@ class OrderDetailScreen extends StatelessWidget {
                       children: [
                         Expanded(
                           child: Text(
-                            order.transactionId!,
+                            order.receiptUrl!,
                             style: TextStyle(
                               color: accent,
                               fontSize: 18,
@@ -354,8 +368,8 @@ class OrderDetailScreen extends StatelessWidget {
                           icon: Icon(Icons.copy, size: 18, color: accent),
                           padding: EdgeInsets.zero,
                           constraints: const BoxConstraints(),
-                          onPressed: () => _copyTransactionIdToClipboard(context, order.transactionId!),
-                          tooltip: 'Copy Transaction ID',
+                          onPressed: () => _copyReceiptUrlToClipboard(context, order.receiptUrl!),
+                          tooltip: 'Copy Receipt URL',
                         ),
                       ],
                     ),

@@ -1,10 +1,8 @@
-import 'package:e_commerce_frontend/screens/products_page.dart';
-import 'package:e_commerce_frontend/screens/product_detail_page.dart';
-import 'package:e_commerce_frontend/utils/colors.dart';
+import 'package:e_commerce_frontend/models/brand_model.dart';
+import 'package:e_commerce_frontend/models/product_model.dart';
+import 'package:e_commerce_frontend/widgets/product_card.dart';
 import 'package:flutter/material.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
-import '../models/brand_model.dart';
-import '../models/product_model.dart';
 
 class AllBrandsPage extends StatefulWidget {
   const AllBrandsPage({super.key});
@@ -41,12 +39,10 @@ class _AllBrandsPageState extends State<AllBrandsPage> {
       
       for (final brand in brands) {
         try {
-          // Count products for this brand
           final productData = await supabase
-              .from('products')
+              .from('product_catalog')
               .select('id')
-              .eq('brand_id', brand.id)
-              .eq('is_archived', false);
+              .eq('brand_name', brand.name);
           
           final count = productData.length;
           
@@ -71,9 +67,11 @@ class _AllBrandsPageState extends State<AllBrandsPage> {
   }
 
   Future<void> _onRefresh() async {
+    final future = fetchAllBrands();
     setState(() {
-      _brandsFuture = fetchAllBrands();
+      _brandsFuture = future;
     });
+    await future;
   }
 
   @override
@@ -110,36 +108,42 @@ class _AllBrandsPageState extends State<AllBrandsPage> {
             }
 
             if (snapshot.hasError) {
-              return Center(
-                child: Padding(
-                  padding: const EdgeInsets.all(20.0),
-                  child: Column(
-                    mainAxisAlignment: MainAxisAlignment.center,
-                    children: [
-                      Icon(
-                        Icons.error_outline,
-                        size: 64,
-                        color: Colors.grey[400],
+              return SingleChildScrollView(
+                physics: const AlwaysScrollableScrollPhysics(),
+                child: SizedBox(
+                  height: MediaQuery.of(context).size.height - 200,
+                  child: Center(
+                    child: Padding(
+                      padding: const EdgeInsets.all(20.0),
+                      child: Column(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        children: [
+                          Icon(
+                            Icons.error_outline,
+                            size: 64,
+                            color: Colors.grey[400],
+                          ),
+                          const SizedBox(height: 16),
+                          const Text(
+                            'Error loading brands',
+                            style: TextStyle(
+                              color: Colors.white,
+                              fontSize: 18,
+                              fontWeight: FontWeight.bold,
+                            ),
+                          ),
+                          const SizedBox(height: 8),
+                          Text(
+                            snapshot.error.toString(),
+                            textAlign: TextAlign.center,
+                            style: TextStyle(
+                              color: Colors.grey[400],
+                              fontSize: 14,
+                            ),
+                          ),
+                        ],
                       ),
-                      const SizedBox(height: 16),
-                      Text(
-                        'Error loading brands',
-                        style: TextStyle(
-                          color: Colors.white,
-                          fontSize: 18,
-                          fontWeight: FontWeight.bold,
-                        ),
-                      ),
-                      const SizedBox(height: 8),
-                      Text(
-                        snapshot.error.toString(),
-                        textAlign: TextAlign.center,
-                        style: TextStyle(
-                          color: Colors.grey[400],
-                          fontSize: 14,
-                        ),
-                      ),
-                    ],
+                    ),
                   ),
                 ),
               );
@@ -148,31 +152,38 @@ class _AllBrandsPageState extends State<AllBrandsPage> {
             final brands = snapshot.data ?? [];
 
             if (brands.isEmpty) {
-              return Center(
-                child: Column(
-                  mainAxisAlignment: MainAxisAlignment.center,
-                  children: [
-                    Icon(
-                      Icons.store_outlined,
-                      size: 64,
-                      color: Colors.grey[400],
+              return SingleChildScrollView(
+                physics: const AlwaysScrollableScrollPhysics(),
+                child: SizedBox(
+                  height: MediaQuery.of(context).size.height - 200,
+                  child: Center(
+                    child: Column(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        Icon(
+                          Icons.store_outlined,
+                          size: 64,
+                          color: Colors.grey[400],
+                        ),
+                        const SizedBox(height: 16),
+                        const Text(
+                          'No brands available',
+                          style: TextStyle(
+                            color: Colors.white,
+                            fontSize: 18,
+                            fontWeight: FontWeight.w500,
+                          ),
+                        ),
+                      ],
                     ),
-                    const SizedBox(height: 16),
-                    Text(
-                      'No brands available',
-                      style: TextStyle(
-                        color: Colors.white,
-                        fontSize: 18,
-                        fontWeight: FontWeight.w500,
-                      ),
-                    ),
-                  ],
+                  ),
                 ),
               );
             }
 
             return GridView.builder(
               padding: const EdgeInsets.all(16),
+              physics: const AlwaysScrollableScrollPhysics(),
               gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
                 crossAxisCount: 2,
                 mainAxisSpacing: 12,
@@ -393,14 +404,16 @@ class _BrandProductsPageState extends State<BrandProductsPage> {
       debugPrint('Error: $e');
       debugPrint('Stack trace: $stackTrace');
       // Re-throw the error so FutureBuilder can catch it
-      throw e;
+      rethrow;
     }
   }
 
   Future<void> _onRefresh() async {
+    final future = fetchBrandProducts();
     setState(() {
-      _productsFuture = fetchBrandProducts();
+      _productsFuture = future;
     });
+    await future;
   }
 
   @override
@@ -490,7 +503,7 @@ class _BrandProductsPageState extends State<BrandProductsPage> {
               }
 
               final products = snapshot.data ?? [];
-              print('🟢 Products count: ${products.length}');
+              debugPrint('🟢 Products count: ${products.length}');
 
             if (products.isEmpty) {
               debugPrint('🟡 Showing empty state');
@@ -533,161 +546,20 @@ class _BrandProductsPageState extends State<BrandProductsPage> {
             }
 
               print('🟢 Building GridView with ${products.length} products');
-              return Container(
-                color: bg,
-                child: GridView.builder(
-                  padding: const EdgeInsets.all(16),
-                  gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-                    crossAxisCount: 2,
-                    mainAxisSpacing: 12,
-                    crossAxisSpacing: 12,
-                    childAspectRatio: 0.7,
-                  ),
-                  itemCount: products.length,
-                  itemBuilder: (context, index) {
-                    if (index >= products.length) {
-                      return const SizedBox.shrink();
-                    }
-                    
-                    final product = products[index];
-                    final firstImage = product.images.isNotEmpty 
-                        ? product.images.first.url 
-                        : '';
-
-                    print('Product ${index + 1}/${products.length}: ${product.name}');
-
-                    return _ProductCard(
-                      product: product,
-                      imageUrl: firstImage,
-                    );
-                  },
+              return GridView.builder(
+                padding: const EdgeInsets.all(16),
+                gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+                  crossAxisCount: 2,
+                  mainAxisSpacing: 16,
+                  crossAxisSpacing: 16,
+                  childAspectRatio: 0.6,
                 ),
+                itemCount: products.length,
+                itemBuilder: (context, index) {
+                  return ProductCard(product: products[index]);
+                },
               );
             },
-          ),
-        ),
-      ),
-    );
-  }
-}
-
-class _ProductCard extends StatelessWidget {
-  final Product product;
-  final String imageUrl;
-
-  const _ProductCard({
-    required this.product,
-    required this.imageUrl,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    const card = Color(0xFF1B1C1F);
-    const border = Color(0xFF2B2C30);
-    const muted = Color(0xFF9AA0A6);
-
-    return Material(
-      color: Colors.transparent,
-      child: InkWell(
-        onTap: () {
-          Navigator.of(context).push(
-            MaterialPageRoute(
-              builder: (context) => ProductDetails(product: product),
-            ),
-          );
-        },
-        borderRadius: BorderRadius.circular(14),
-        child: Ink(
-          decoration: BoxDecoration(
-            color: card,
-            borderRadius: BorderRadius.circular(14),
-            border: Border.all(color: border),
-          ),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Expanded(
-                child: ClipRRect(
-                  borderRadius: const BorderRadius.vertical(
-                    top: Radius.circular(14),
-                  ),
-                  child: imageUrl.isNotEmpty
-                      ? Image.network(
-                          imageUrl,
-                          width: double.infinity,
-                          height: double.infinity,
-                          fit: BoxFit.cover,
-                          loadingBuilder: (context, child, loadingProgress) {
-                            if (loadingProgress == null) {
-                              return child;
-                            }
-                            return Container(
-                              color: Colors.grey[800],
-                              child: Center(
-                                child: CircularProgressIndicator(
-                                  value: loadingProgress.expectedTotalBytes != null
-                                      ? loadingProgress.cumulativeBytesLoaded /
-                                          loadingProgress.expectedTotalBytes!
-                                      : null,
-                                  color: Colors.brown.shade300,
-                                ),
-                              ),
-                            );
-                          },
-                          errorBuilder: (context, error, stackTrace) {
-                            debugPrint('Error loading image: $imageUrl - $error');
-                            return Container(
-                              color: Colors.grey[800],
-                              child: const Center(
-                                child: Icon(
-                                  Icons.image_not_supported,
-                                  color: Colors.grey,
-                                  size: 40,
-                                ),
-                              ),
-                            );
-                          },
-                        )
-                      : Container(
-                          color: Colors.grey[800],
-                          child: const Center(
-                            child: Icon(
-                              Icons.image_not_supported,
-                              color: Colors.grey,
-                              size: 40,
-                            ),
-                          ),
-                        ),
-                ),
-              ),
-              Padding(
-                padding: const EdgeInsets.all(10),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      product.name,
-                      maxLines: 2,
-                      overflow: TextOverflow.ellipsis,
-                      style: const TextStyle(
-                        color: Colors.white,
-                        fontSize: 13,
-                        fontWeight: FontWeight.w600,
-                      ),
-                    ),
-                    const SizedBox(height: 4),
-                    Text(
-                      '${product.minPrice} MMK',
-                      style: const TextStyle(
-                        color: Colors.white,
-                        fontSize: 14,
-                        fontWeight: FontWeight.bold,
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-            ],
           ),
         ),
       ),

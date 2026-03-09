@@ -41,7 +41,7 @@ class _ProductActionState extends State<ProductActionBar> {
           boxShadow: [
             BoxShadow(
               blurRadius: 10,
-              color: Colors.black.withOpacity(0.1)
+              color: Colors.black.withAlpha(25)
             )
           ]
         ),

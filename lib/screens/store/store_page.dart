@@ -97,42 +97,7 @@ class _StorePageState extends State<StorePage> {
     }
   }
 
-  Future<List<BrandWithCount>> _fetchFeaturedBrands(String categoryId) async {
-    try {
-      // Fetch brands that have products in this category
-      final data = await supabase
-          .from('products')
-          .select('brand_id, brands(id, name, logo_url)')
-          .not('brand_id', 'is', null)
-          .eq('category_id', categoryId)
-          .eq('is_archived', false);
 
-      final rows = List<Map<String, dynamic>>.from(data);
-      final brandCounts = <String, int>{};
-      final brandMap = <String, Brand>{};
-
-      for (final row in rows) {
-        final brandData = row['brands'];
-        if (brandData != null) {
-          final brand = Brand.fromMap(Map<String, dynamic>.from(brandData));
-          brandMap[brand.id] = brand;
-          brandCounts[brand.id] = (brandCounts[brand.id] ?? 0) + 1;
-        }
-      }
-
-      // Convert to list with counts, limit to 4 for featured
-      return brandMap.values
-          .map((brand) => BrandWithCount(
-                brand: brand,
-                productCount: brandCounts[brand.id] ?? 0,
-              ))
-          .take(4)
-          .toList();
-    } catch (e) {
-      debugPrint('Error fetching featured brands: $e');
-      return [];
-    }
-  }
 
   Future<List<BrandWithCount>> _fetchAllFeaturedBrands() async {
     try {
@@ -241,6 +206,11 @@ class _StorePageState extends State<StorePage> {
           .select()
           .eq('category_name', categoryName);
 
+      if (catalogData.isNotEmpty) {
+        final first = catalogData.first;
+        debugPrint('product_catalog columns: ${first.keys.toList()}');
+      }
+
       final products = catalogData.map<Product>((e) => Product.fromMap(e)).toList();
       
       // Group by brand and fetch brand IDs
@@ -278,7 +248,7 @@ class _StorePageState extends State<StorePage> {
 
       return grouped;
     } catch (e) {
-      debugPrint('Error fetching brand products: $e');
+      debugPrint('Error details: $e');
       return {};
     }
   }
@@ -295,6 +265,20 @@ class _StorePageState extends State<StorePage> {
     }
   }
 
+  Future<void> _onRefresh() async {
+    // Reload all data
+    _loadData();
+    _loadCartCount();
+    
+    // Wait for futures to complete (optional, as _loadData sets state immediately, 
+    // but better for RefreshIndicator to wait)
+    await Future.wait([
+      _categoriesFuture,
+      _featuredBrandsFuture,
+      _brandProductsFuture,
+    ]);
+  }
+
   @override
   void dispose() {
     _cartRefreshTimer?.cancel();
@@ -307,15 +291,19 @@ class _StorePageState extends State<StorePage> {
     const card = Colors.white;
     const border = Color(0xFFE0E0E0);
     const muted = Color(0xFF9AA0A6);
-    final accent = Colors.brown.shade300;
 
     return Scaffold(
       backgroundColor: bg,
-      body: SafeArea(
-        child: CustomScrollView(
-          slivers: [
-            SliverPadding(
-              padding: const EdgeInsets.fromLTRB(16, 12, 16, 0),
+      body: RefreshIndicator(
+        onRefresh: _onRefresh,
+        color: Colors.brown.shade300,
+        child: SafeArea(
+          bottom: false,
+          child: CustomScrollView(
+            physics: const AlwaysScrollableScrollPhysics(),
+            slivers: [
+              SliverPadding(
+                padding: const EdgeInsets.fromLTRB(16, 12, 16, 0),
               sliver: SliverToBoxAdapter(
                 child: Row(
                   children: [
@@ -332,7 +320,7 @@ class _StorePageState extends State<StorePage> {
                       future: _cartCountFuture,
                       builder: (context, snapshot) {
                         final count = snapshot.data ?? 0;
-                        return _CartButton(
+                        return CartButton(
                           count: count,
                           onTap: () {
                             Navigator.of(context).push(
@@ -436,8 +424,8 @@ class _StorePageState extends State<StorePage> {
                       itemCount: brands.length,
                       itemBuilder: (context, index) {
                         final brandData = brands[index];
-                        return _BrandCard(
-                          data: _BrandCardData(
+                        return BrandCard(
+                          data: BrandCardData(
                             name: brandData.brand.name,
                             productCountText: '${brandData.productCount} products',
                             logoUrl: brandData.brand.logoUrl,
@@ -552,10 +540,7 @@ class _StorePageState extends State<StorePage> {
                       return const Center(
                         child: Padding(
                           padding: EdgeInsets.all(20.0),
-                          child: Text(
-                            'No products available',
-                            style: TextStyle(color: muted),
-                          ),
+                          child: CircularProgressIndicator(),
                         ),
                       );
                     }
@@ -574,14 +559,14 @@ class _StorePageState extends State<StorePage> {
                         // Get first 3 product images
                         final thumbnails = products
                             .take(3)
-                            .map((p) => p.images.isNotEmpty ? p.images[0].url : '')
+                            .map((p) => p.imageUrl)
                             .where((url) => url.isNotEmpty)
                             .toList();
 
                         return Padding(
                           padding: const EdgeInsets.only(bottom: 12),
-                          child: _BrandSectionCard(
-                            data: _BrandSectionData(
+                          child: BrandSectionCard(
+                            data: BrandSectionData(
                               title: brandName,
                               productCountText: '$productCount products',
                               thumbnails: thumbnails,
@@ -619,15 +604,15 @@ class _StorePageState extends State<StorePage> {
           ],
         ),
       ),
-    );
+    ));
   }
 }
 
-class _CartButton extends StatelessWidget {
+class CartButton extends StatelessWidget {
   final int count;
   final VoidCallback onTap;
 
-  const _CartButton({required this.count, required this.onTap});
+  const CartButton({super.key, required this.count, required this.onTap});
 
   @override
   Widget build(BuildContext context) {
@@ -697,25 +682,25 @@ class BrandProductsData {
   });
 }
 
-class _BrandCardData {
+class BrandCardData {
   final String name;
   final String productCountText;
   final String? logoUrl;
-  const _BrandCardData({
+  const BrandCardData({
     required this.name,
     required this.productCountText,
     this.logoUrl,
   });
 }
 
-class _BrandCard extends StatelessWidget {
-  final _BrandCardData data;
+class BrandCard extends StatelessWidget {
+  final BrandCardData data;
   final Color bg;
   final Color border;
   final Color muted;
   final VoidCallback onTap;
 
-  const _BrandCard({
+  const BrandCard({super.key, 
     required this.data,
     required this.bg,
     required this.border,
@@ -813,12 +798,12 @@ class _BrandCard extends StatelessWidget {
   }
 }
 
-class _BrandSectionData {
+class BrandSectionData {
   final String title;
   final String productCountText;
   final List<String> thumbnails; // Now contains image URLs
   final String brandId;
-  const _BrandSectionData({
+  const BrandSectionData({
     required this.title,
     required this.productCountText,
     required this.thumbnails,
@@ -826,14 +811,14 @@ class _BrandSectionData {
   });
 }
 
-class _BrandSectionCard extends StatelessWidget {
-  final _BrandSectionData data;
+class BrandSectionCard extends StatelessWidget {
+  final BrandSectionData data;
   final Color bg;
   final Color border;
   final Color muted;
   final VoidCallback? onTap;
 
-  const _BrandSectionCard({
+  const BrandSectionCard({super.key, 
     required this.data,
     required this.bg,
     required this.border,
@@ -912,47 +897,36 @@ class _BrandSectionCard extends StatelessWidget {
                         ],
                       ),
                     ),
-                    Icon(Icons.chevron_right, color: muted),
+                    const Icon(Icons.arrow_forward_ios, size: 12, color: Colors.grey),
                   ],
                 ),
                 const SizedBox(height: 12),
-                SizedBox(
-                  height: 62,
-                  child: ListView.separated(
-                    scrollDirection: Axis.horizontal,
-                    itemCount: data.thumbnails.length,
-                    separatorBuilder: (_, __) => const SizedBox(width: 10),
-                    itemBuilder: (context, i) {
-                      return ClipRRect(
-                        borderRadius: BorderRadius.circular(12),
-                        child: Container(
-                          width: 74,
-                          height: 62,
-                          color: Colors.grey[200],
-                          child: data.thumbnails[i].isNotEmpty
-                              ? Image.network(
-                                  data.thumbnails[i],
-                                  fit: BoxFit.cover,
-                                  errorBuilder: (context, error, stackTrace) {
-                                    return Center(
-                                      child: Icon(Icons.image_not_supported, color: muted),
-                                    );
-                                  },
-                                  loadingBuilder: (context, child, loadingProgress) {
-                                    if (loadingProgress == null) return child;
-                                    return const Center(
-                                      child: CircularProgressIndicator(strokeWidth: 2),
-                                    );
-                                  },
-                                )
-                              : Center(
-                                  child: Icon(Icons.image_not_supported, color: muted),
-                                ),
+                if (data.thumbnails.isNotEmpty)
+                  Row(
+                    children: data.thumbnails.take(3).map((url) {
+                      return Expanded(
+                        child: Padding(
+                          padding: const EdgeInsets.only(right: 8.0),
+                          child: ClipRRect(
+                            borderRadius: BorderRadius.circular(8),
+                            child: AspectRatio(
+                              aspectRatio: 1,
+                              child: Image.network(
+                                url,
+                                fit: BoxFit.cover,
+                                errorBuilder: (context, error, stackTrace) {
+                                  return Container(
+                                    color: Colors.grey[200],
+                                    child: const Icon(Icons.image_not_supported, color: Colors.grey),
+                                  );
+                                },
+                              ),
+                            ),
+                          ),
                         ),
                       );
-                    },
+                    }).toList(),
                   ),
-                ),
               ],
             ),
           ),

@@ -254,7 +254,7 @@ class _OrderHistoryScreenState extends State<OrderHistoryScreen> {
                         color: _getStatusColor(order.status).withOpacity(0.1),
                         borderRadius: BorderRadius.circular(20),
                         border: Border.all(
-                          color: _getStatusColor(order.status).withOpacity(0.3),
+                          color: _getStatusColor(order.status).withAlpha(179),
                           width: 1.5,
                         ),
                       ),

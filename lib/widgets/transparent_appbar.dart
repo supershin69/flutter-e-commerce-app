@@ -2,13 +2,9 @@ import 'package:e_commerce_frontend/utils/colors.dart';
 import 'package:flutter/material.dart';
 
 class TransparentAppbar extends StatelessWidget implements PreferredSizeWidget {
-  final bool isWishlisted;
-  final VoidCallback onWishlistToggle;
 
   const TransparentAppbar({
     super.key,
-    required this.isWishlisted,
-    required this.onWishlistToggle,
   });
 
   @override
@@ -27,13 +23,6 @@ class TransparentAppbar extends StatelessWidget implements PreferredSizeWidget {
               icon: Icons.chevron_left,
               onTap: () => Navigator.pop(context),
             ),
-            IconButton(
-              onPressed: onWishlistToggle,
-              icon: Icon(
-                isWishlisted ? Icons.favorite : Icons.favorite_border,
-                color: isWishlisted ? Colors.red : AppColors.appbarColor,
-              ),
-            )
           ],
         ),
       ),
@@ -50,7 +39,7 @@ class _CircleButton extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Material(
-      color: AppColors.appbarColor.withOpacity(0.8), // Added opacity for better visibility on images
+      color: AppColors.appbarColor.withAlpha(204), // Added opacity for better visibility on images
       shape: const CircleBorder(),
       child: InkWell(
         customBorder: const CircleBorder(),

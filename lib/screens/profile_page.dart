@@ -1,5 +1,3 @@
-import 'package:e_commerce_frontend/screens/NotificationPage.dart';
-import 'package:e_commerce_frontend/screens/wishlist_page.dart';
 import 'package:e_commerce_frontend/features/personalization/screens/orders/orders.dart';
 import 'package:flutter/material.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
@@ -105,14 +103,6 @@ class _ProfilePageState extends State<ProfilePage> {
                       title: 'My Orders',
                       onTap: () {
                          Navigator.push(context, MaterialPageRoute(builder: (_) => const OrderHistoryScreen()));
-                      },
-                    ),
-                    _buildDivider(),
-                    _buildListTile(
-                      icon: Icons.favorite_border,
-                      title: 'Wishlist',
-                      onTap: () {
-                        Navigator.push(context, MaterialPageRoute(builder: (_) => WishlistPage()));
                       },
                     ),
                   ]),
@@ -235,7 +225,7 @@ class _ProfilePageState extends State<ProfilePage> {
         borderRadius: BorderRadius.circular(12),
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withOpacity(0.05),
+            color: Colors.black.withAlpha(13),
             blurRadius: 10,
             offset: const Offset(0, 4),
           ),

@@ -2,7 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import '../models/product_model.dart';
 import '../utils/colors.dart';
-import 'product_detail_page.dart';
+import '../widgets/product_card.dart';
 
 class StoreSearchResultsPage extends StatefulWidget {
   final String searchQuery;
@@ -116,7 +116,7 @@ class _StoreSearchResultsPageState extends State<StoreSearchResultsPage> {
             border: Border.all(color: border),
             boxShadow: [
               BoxShadow(
-                color: Colors.black.withOpacity(0.05),
+                color: Colors.black.withAlpha(13),
                 blurRadius: 4,
                 offset: const Offset(0, 2),
               ),
@@ -220,121 +220,16 @@ class _StoreSearchResultsPageState extends State<StoreSearchResultsPage> {
             }
 
             return GridView.builder(
-              padding: const EdgeInsets.all(10),
+              padding: const EdgeInsets.all(16),
               gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
                 crossAxisCount: 2,
-                mainAxisSpacing: 10,
-                crossAxisSpacing: 10,
-                childAspectRatio: 0.7,
+                crossAxisSpacing: 16,
+                mainAxisSpacing: 16,
+                childAspectRatio: 0.6,
               ),
               itemCount: products.length,
               itemBuilder: (context, index) {
-                final product = products[index];
-                return InkWell(
-                  borderRadius: BorderRadius.circular(16),
-                  onTap: () {
-                    Navigator.of(context).push(
-                      MaterialPageRoute(
-                        builder: (context) => ProductDetails(product: product),
-                      ),
-                    );
-                  },
-                  child: Card(
-                    elevation: 4,
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(16),
-                    ),
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        // Image
-                        Expanded(
-                          child: ClipRRect(
-                            borderRadius: const BorderRadius.vertical(
-                              top: Radius.circular(16),
-                            ),
-                            child: Container(
-                              color: Colors.white,
-                              child: product.images.isNotEmpty
-                                  ? Image.network(
-                                      product.images[0].url,
-                                      fit: BoxFit.contain,
-                                      width: double.infinity,
-                                      loadingBuilder: (context, child, loadingProgress) {
-                                        if (loadingProgress == null) return child;
-                                        return Center(
-                                          child: CircularProgressIndicator(
-                                            value: loadingProgress.expectedTotalBytes != null
-                                                ? loadingProgress.cumulativeBytesLoaded /
-                                                    loadingProgress.expectedTotalBytes!
-                                                : null,
-                                          ),
-                                        );
-                                      },
-                                      errorBuilder: (context, error, stackTrace) =>
-                                          const Center(
-                                            child: Icon(
-                                              Icons.error_outline,
-                                              color: Colors.grey,
-                                            ),
-                                          ),
-                                    )
-                                  : const Center(
-                                      child: Icon(
-                                        Icons.image_not_supported,
-                                        color: Colors.grey,
-                                      ),
-                                    ),
-                            ),
-                          ),
-                        ),
-                        // Product Name
-                        Container(
-                          color: Colors.white,
-                          width: double.infinity,
-                          padding: const EdgeInsets.all(10),
-                          child: Text(
-                            product.name,
-                            style: const TextStyle(
-                              fontWeight: FontWeight.bold,
-                              fontSize: 14,
-                            ),
-                            maxLines: 2,
-                            overflow: TextOverflow.ellipsis,
-                          ),
-                        ),
-                        // Product Price
-                        Container(
-                          padding: const EdgeInsets.all(10),
-                          width: double.infinity,
-                          decoration: const BoxDecoration(
-                            color: Colors.white,
-                            borderRadius: BorderRadius.vertical(
-                              bottom: Radius.circular(16),
-                            ),
-                          ),
-                          child: product.minPrice == product.maxPrice
-                              ? Text(
-                                  '${product.minPrice} MMK',
-                                  style: const TextStyle(
-                                    color: AppColors.matchaGreen,
-                                    fontWeight: FontWeight.bold,
-                                    fontSize: 14,
-                                  ),
-                                )
-                              : Text(
-                                  '${product.minPrice} - ${product.maxPrice} MMK',
-                                  style: const TextStyle(
-                                    color: AppColors.matchaGreen,
-                                    fontWeight: FontWeight.bold,
-                                    fontSize: 14,
-                                  ),
-                                ),
-                        ),
-                      ],
-                    ),
-                  ),
-                );
+                return ProductCard(product: products[index]);
               },
             );
           },

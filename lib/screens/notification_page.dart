@@ -34,7 +34,7 @@ class _NotificationPageState extends State<NotificationPage> {
         });
       }
       return;
-    };
+    }
 
     try {
       final data = await Supabase.instance.client
@@ -143,7 +143,7 @@ class _NotificationPageState extends State<NotificationPage> {
         boxShadow: [
           if (!read) // Subtle lift for unread items
             BoxShadow(
-              color: Colors.brown.withOpacity(0.05),
+              color: Colors.grey.withAlpha(51),
               blurRadius: 10,
               offset: const Offset(0, 4),
             ),

@@ -1,7 +1,6 @@
 import 'package:flutter/material.dart';
 import '../models/cart_item_model.dart';
 import '../services/cart_service.dart';
-import '../utils/colors.dart';
 import 'package:e_commerce_frontend/features/shop/screens/checkout/checkout_voucher.dart';
 
 class CartPage extends StatefulWidget {
@@ -450,7 +449,7 @@ class _CartItemCard extends StatelessWidget {
                       child: Container(
                         padding: const EdgeInsets.all(6),
                         decoration: BoxDecoration(
-                          color: Colors.red.withOpacity(0.2),
+                          color: Colors.red.withAlpha(51),
                           borderRadius: BorderRadius.circular(6),
                         ),
                         child: const Icon(
