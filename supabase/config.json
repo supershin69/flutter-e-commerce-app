@@ -2,6 +2,9 @@
   "functions": {
     "check-price-drops": {
       "verify_jwt": false
+    },
+    "notify-order-delivery-fee": {
+      "verify_jwt": true
     }
   }
 }

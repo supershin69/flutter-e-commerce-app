@@ -2,9 +2,11 @@ import 'package:e_commerce_frontend/utils/colors.dart';
 import 'package:flutter/material.dart';
 
 class TransparentAppbar extends StatelessWidget implements PreferredSizeWidget {
+  final Widget? trailing;
 
   const TransparentAppbar({
     super.key,
+    this.trailing,
   });
 
   @override
@@ -23,6 +25,7 @@ class TransparentAppbar extends StatelessWidget implements PreferredSizeWidget {
               icon: Icons.chevron_left,
               onTap: () => Navigator.pop(context),
             ),
+            if (trailing != null) trailing!,
           ],
         ),
       ),

@@ -1,4 +1,4 @@
-import 'package:e_commerce_frontend/widgets/price_alert_sheet.dart';
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart'; // REQUIRED for SystemUiOverlayStyle
 import 'package:supabase_flutter/supabase_flutter.dart'; // REQUIRED for Supabase
@@ -26,7 +26,9 @@ class _ProductDetailState extends State<ProductDetails> {
   final CartService _cartService = CartService();
   final _uuid = const Uuid();
 
+  late Product _product;
   late Future<List<Product>> _relatedProductFuture;
+  bool _isLoadingProduct = false;
 
   // State for selections
   Map<String, VariantAttribute> selectedAttributes = {};
@@ -37,45 +39,82 @@ class _ProductDetailState extends State<ProductDetails> {
   @override
   void initState() {
     super.initState();
+    _product = widget.product;
     _initializeSelection();
+    _loadFullProductIfNeeded();
     _relatedProductFuture = fetchRelatedProducts();
+  }
+
+  Future<void> _loadFullProductIfNeeded() async {
+    if (_product.variants.isNotEmpty && _product.images.isNotEmpty) return;
+    setState(() {
+      _isLoadingProduct = true;
+    });
+    try {
+      final data = await supabase
+          .from('product_catalog')
+          .select()
+          .eq('id', _product.id)
+          .maybeSingle();
+      if (data != null) {
+        final loaded = Product.fromMap(Map<String, dynamic>.from(data));
+        if (mounted) {
+          setState(() {
+            _product = loaded;
+            selectedAttributes = {};
+            currentVariant = null;
+            currentPrice = 0.0;
+            displayImages = [];
+            _initializeSelection();
+          });
+        }
+      }
+    } catch (e) {
+      debugPrint('Error loading product_catalog for ${_product.id}: $e');
+    } finally {
+      if (mounted) {
+        setState(() {
+          _isLoadingProduct = false;
+        });
+      }
+    }
   }
 
   Future<List<Product>> fetchRelatedProducts() async {
     final data = await supabase
         .from('product_catalog')
         .select()
-        .eq('category_name', widget.product.categoryName)
-        .neq('id', widget.product.id)
+        .eq('category_name', _product.categoryName)
+        .neq('id', _product.id)
         .limit(10);
 
     return data.map<Product>((e) => Product.fromMap(e)).toList();
   }
 
   void _initializeSelection() {
-    if (widget.product.variants.isNotEmpty) {
-      final firstVariant = widget.product.variants.first;
+    if (_product.variants.isNotEmpty) {
+      final firstVariant = _product.variants.first;
       currentVariant = firstVariant;
       currentPrice = firstVariant.price.toDouble();
-      displayImages = widget.product.images;
+      displayImages = _product.images;
       for (var attr in firstVariant.attributes) {
         selectedAttributes[attr.type] = attr;
       }
     } else {
-      currentPrice = widget.product.minPrice.toDouble();
-      displayImages = widget.product.images;
+      currentPrice = _product.minPrice.toDouble();
+      displayImages = _product.images;
     }
   }
 
   void _updateVariantAndImages() {
-    if (widget.product.variants.isEmpty) return;
+    if (_product.variants.isEmpty) return;
 
     ProductVariant? newVariant;
     double newPrice = currentPrice;
     List<ProductImage> newImages;
 
     try {
-      final matchingVariant = widget.product.variants.firstWhere((variant) {
+      final matchingVariant = _product.variants.firstWhere((variant) {
         return selectedAttributes.values.every((selectedAttr) {
           return variant.attributes.any((variantAttr) => variantAttr.id == selectedAttr.id);
         });
@@ -88,16 +127,16 @@ class _ProductDetailState extends State<ProductDetails> {
 
     if (selectedAttributes.containsKey('color')) {
       final selectedColorAttribute = selectedAttributes['color']!;
-      final variantImages = widget.product.images
+      final variantImages = _product.images
           .where((img) => img.attributeValueId == selectedColorAttribute.id)
           .toList();
 
       newImages = variantImages.isNotEmpty
           ? variantImages
-          : widget.product.images.where((img) => img.attributeValueId == null).toList();
-      if (newImages.isEmpty) newImages = widget.product.images;
+          : _product.images.where((img) => img.attributeValueId == null).toList();
+      if (newImages.isEmpty) newImages = _product.images;
     } else {
-      newImages = widget.product.images;
+      newImages = _product.images;
     }
 
     setState(() {
@@ -108,7 +147,14 @@ class _ProductDetailState extends State<ProductDetails> {
   }
 
   Future<void> addToCart(int quantity) async {
-    if (widget.product.variants.isNotEmpty && currentVariant == null) {
+    if (_product.variants.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text("No variants available for this product")),
+      );
+      return;
+    }
+
+    if (currentVariant == null) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(content: Text("Please select all options")),
       );
@@ -117,21 +163,21 @@ class _ProductDetailState extends State<ProductDetails> {
 
     try {
       final price = currentPrice;
-      final variantId = currentVariant?.id ?? 'default';
-      final variantName = currentVariant?.attributes.map((e) => e.value).join(', ') ?? '';
-      final firstImage = widget.product.images.isNotEmpty ? widget.product.images.first.url : '';
+      final variantId = currentVariant!.id;
+      final variantName = currentVariant!.attributes.map((e) => e.value).join(', ');
+      final firstImage = _product.images.isNotEmpty ? _product.images.first.url : '';
 
       final cartItem = CartItem(
         id: _uuid.v4(),
-        productId: widget.product.id,
-        productName: widget.product.name,
+        productId: _product.id,
+        productName: _product.name,
         variantId: variantId,
         variantName: variantName,
         price: price.toInt(),
         quantity: quantity,
         imageUrl: firstImage,
-        brandName: widget.product.brandName,
-        categoryName: widget.product.categoryName,
+        brandName: _product.brandName,
+        categoryName: _product.categoryName,
       );
 
       final success = await _cartService.addToCart(cartItem);
@@ -139,7 +185,7 @@ class _ProductDetailState extends State<ProductDetails> {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text(success ? "Added ${quantity}x ${widget.product.name} to Cart" : "Failed to add to cart"),
+            content: Text(success ? "Added ${quantity}x ${_product.name} to Cart" : "Failed to add to cart"),
             backgroundColor: success ? Colors.green : Colors.red,
           ),
         );
@@ -181,7 +227,7 @@ class _ProductDetailState extends State<ProductDetails> {
                   ),
                   const SizedBox(height: 20),
                   Text(
-                    'Current price: ${widget.product.minPrice.round()} MMK',
+                    'Current price: ${_product.minPrice.round()} MMK',
                     style: const TextStyle(fontSize: 16),
                   ),
                   const SizedBox(height: 20),
@@ -252,7 +298,7 @@ class _ProductDetailState extends State<ProductDetails> {
           .from('price_alerts')
           .upsert({
             'user_id': user.id,
-            'product_id': widget.product.id,
+            'product_id': _product.id,
             'target_price': targetPrice,
             'is_active': true,
           }, onConflict: 'user_id, product_id');
@@ -287,10 +333,70 @@ class _ProductDetailState extends State<ProductDetails> {
     return const Divider(height: 1, thickness: 0.5);
   }
 
+  Future<void> _showAvailabilityDebug() async {
+    try {
+      final productRow = await supabase
+          .from('products')
+          .select('id, name, is_archived, created_at')
+          .eq('id', _product.id)
+          .maybeSingle();
+
+      final variants = await supabase
+          .from('product_variants')
+          .select('id, price, quantity, is_active')
+          .eq('product_id', _product.id);
+      final variantsList = (variants as List<dynamic>?) ?? const <dynamic>[];
+
+      Map<String, dynamic>? catalogRow;
+      try {
+        catalogRow = await supabase
+            .from('product_catalog')
+            .select()
+            .eq('id', _product.id)
+            .maybeSingle();
+      } catch (_) {
+        catalogRow = null;
+      }
+
+      final text = StringBuffer()
+        ..writeln('Product:')
+        ..writeln(productRow == null ? '-' : productRow.toString())
+        ..writeln('')
+        ..writeln('Variants:')
+        ..writeln(variantsList.isNotEmpty ? variantsList.toString() : '[]')
+        ..writeln('')
+        ..writeln('Catalog row:')
+        ..writeln(catalogRow == null ? '-' : catalogRow.toString())
+        ..writeln('')
+        ..writeln('Parsed in app:')
+        ..writeln('variants=${_product.variants.length} images=${_product.images.length} archived=${_product.archived} isAvailable=${_product.isAvailable}');
+
+      if (!mounted) return;
+      await showDialog<void>(
+        context: context,
+        builder: (context) => AlertDialog(
+          title: const Text('Availability Debug'),
+          content: SizedBox(
+            width: double.maxFinite,
+            child: SingleChildScrollView(child: SelectableText(text.toString())),
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(context),
+              child: const Text('Close'),
+            ),
+          ],
+        ),
+      );
+    } catch (e) {
+      debugPrint('Availability debug error: $e');
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     final Map<String, List<VariantAttribute>> attributesByType = {};
-    for (var variant in widget.product.variants) {
+    for (var variant in _product.variants) {
       for (var attr in variant.attributes) {
         if (!attributesByType.containsKey(attr.type)) attributesByType[attr.type] = [];
         if (!attributesByType[attr.type]!.any((e) => e.id == attr.id)) {
@@ -299,19 +405,35 @@ class _ProductDetailState extends State<ProductDetails> {
       }
     }
 
+    final debugTrailing = kDebugMode
+        ? Material(
+            color: AppColors.appbarColor.withAlpha(204),
+            shape: const CircleBorder(),
+            child: InkWell(
+              customBorder: const CircleBorder(),
+              onTap: _showAvailabilityDebug,
+              child: const Padding(
+                padding: EdgeInsets.all(10),
+                child: Icon(Icons.bug_report_outlined, color: Colors.white, size: 20),
+              ),
+            ),
+          )
+        : null;
+
     return AnnotatedRegion<SystemUiOverlayStyle>(
       value: SystemUiOverlayStyle.dark,
       child: Scaffold(
         extendBodyBehindAppBar: true,
-        appBar: const PreferredSize(
-          preferredSize: Size.fromHeight(56),
-          child: TransparentAppbar(),
+        appBar: PreferredSize(
+          preferredSize: const Size.fromHeight(56),
+          child: TransparentAppbar(trailing: debugTrailing),
         ),
         body: SingleChildScrollView(
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               const SizedBox(height: 40),
+              if (_isLoadingProduct) const LinearProgressIndicator(minHeight: 2),
               AspectRatio(
                 aspectRatio: 4 / 3,
                 child: Container(
@@ -341,7 +463,7 @@ class _ProductDetailState extends State<ProductDetails> {
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Text(widget.product.name, style: const TextStyle(fontSize: 22, fontWeight: FontWeight.bold)),
+                    Text(_product.name, style: const TextStyle(fontSize: 22, fontWeight: FontWeight.bold)),
                     const SizedBox(height: 8),
                     Text('$currentPrice MMK', style: const TextStyle(fontSize: 20, fontWeight: FontWeight.bold, color: AppColors.matchaGreen)),
                     const SizedBox(height: 10),
@@ -382,16 +504,16 @@ class _ProductDetailState extends State<ProductDetails> {
                     }),
                     _buildDivider(),
                     const SizedBox(height: 10),
-                    Text(widget.product.description, style: TextStyle(color: Colors.grey[600], height: 1.5)),
+                    Text(_product.description, style: TextStyle(color: Colors.grey[600], height: 1.5)),
                     const SizedBox(height: 20),
                     // Add to Wishlist Button
                     Obx(() {
                       final controller = Get.find<ProductController>();
-                      final isWishlisted = controller.wishlistedProductIds.contains(widget.product.id.trim());
+                      final isWishlisted = controller.wishlistedProductIds.contains(_product.id.trim());
                       return SizedBox(
                         width: double.infinity,
                         child: ElevatedButton.icon(
-                          onPressed: () => controller.toggleWishlist(widget.product),
+                          onPressed: () => controller.toggleWishlist(_product),
                           icon: Icon(
                             isWishlisted ? Icons.favorite : Icons.favorite_border,
                             color: isWishlisted ? Colors.red : Colors.white,

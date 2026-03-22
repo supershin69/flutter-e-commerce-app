@@ -1,4 +1,7 @@
+import 'dart:convert';
+import 'package:e_commerce_frontend/features/personalization/screens/orders/order_detail_screen.dart';
 import 'package:flutter/material.dart';
+import 'package:get/get.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
 class NotificationPage extends StatefulWidget {
@@ -135,6 +138,25 @@ class _NotificationPageState extends State<NotificationPage> {
     final bool read = n['read'] ?? false;
     final String timeAgo = _getTimeAgo(n['created_at']);
 
+    Map<String, dynamic> dataMap = {};
+    final rawData = n['data'];
+    if (rawData is Map) {
+      dataMap = Map<String, dynamic>.from(rawData as Map);
+    } else if (rawData is String && rawData.isNotEmpty) {
+      try {
+        final decoded = jsonDecode(rawData);
+        if (decoded is Map) {
+          dataMap = Map<String, dynamic>.from(decoded);
+        }
+      } catch (_) {}
+    }
+    final type = (n['type'] ?? dataMap['type'])?.toString();
+    final titleText = (n['title'] ?? '').toString();
+    final bodyText = (n['body'] ?? '').toString();
+    final looksLikeDeliveryFee = (type == 'delivery_fee_set') ||
+        titleText.toLowerCase().contains('delivery fee') ||
+        bodyText.toLowerCase().contains('delivery fee');
+
     return Container(
       margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 6),
       decoration: BoxDecoration(
@@ -156,7 +178,14 @@ class _NotificationPageState extends State<NotificationPage> {
         color: Colors.transparent,
         child: InkWell(
           borderRadius: BorderRadius.circular(16),
-          onTap: () => markAsRead(n['id']),
+          onTap: () async {
+            await markAsRead(n['id']);
+
+            if (!looksLikeDeliveryFee) return;
+            final orderId = dataMap['order_id']?.toString();
+            if (orderId == null || orderId.isEmpty) return;
+            Get.to(() => OrderDetailScreen.byId(orderId: orderId));
+          },
           child: Padding(
             padding: const EdgeInsets.all(16),
             child: Row(

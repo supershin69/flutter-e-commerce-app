@@ -9,6 +9,8 @@ class Product {
   final double maxPrice;
   final String brandName;
   final String categoryName;
+  final DateTime? createdAt;
+  final bool? isArchived;
   final List<ProductImage> images;
   final List<ProductVariant> variants;
   final double discount;
@@ -22,6 +24,8 @@ class Product {
     required this.maxPrice,
     required this.brandName,
     required this.categoryName,
+    this.createdAt,
+    this.isArchived,
     required this.images,
     required this.variants,
     required this.discount,
@@ -38,6 +42,12 @@ class Product {
     }
     return '';
   }
+
+  bool get archived => isArchived ?? false;
+
+  bool get hasStock => variants.any((v) => v.stock > 0);
+
+  bool get isAvailable => !archived && (variants.isEmpty || hasStock);
 
   static List<dynamic> _asJsonList(dynamic value) {
     if (value == null) return const [];
@@ -113,6 +123,11 @@ class Product {
   factory Product.fromJson(Map<String, dynamic> json) {
     final minPrice = (json['min_price'] as num?)?.toDouble() ?? 0.0;
     final maxPrice = (json['max_price'] as num?)?.toDouble() ?? 0.0;
+    DateTime? createdAt;
+    final createdAtRaw = json['created_at'];
+    if (createdAtRaw is String && createdAtRaw.isNotEmpty) {
+      createdAt = DateTime.tryParse(createdAtRaw);
+    }
     final imageUrlFromImages = _extractImageUrlFromImagesColumn(json['images']);
     final fallbackImageUrl = _firstNonEmptyString(
       json,
@@ -132,6 +147,8 @@ class Product {
       maxPrice: maxPrice,
       brandName: json['brand_name']?.toString() ?? 'Unknown Brand',
       categoryName: json['category_name']?.toString() ?? 'Unknown Category',
+      createdAt: createdAt,
+      isArchived: json['is_archived'] as bool?,
       images: images,
       variants: _asJsonList(json['variants'])
           .whereType<Map>()
@@ -154,6 +171,8 @@ class Product {
     double? maxPrice,
     String? brandName,
     String? categoryName,
+    DateTime? createdAt,
+    bool? isArchived,
     List<ProductImage>? images,
     List<ProductVariant>? variants,
     double? discount,
@@ -167,6 +186,8 @@ class Product {
       maxPrice: maxPrice ?? this.maxPrice,
       brandName: brandName ?? this.brandName,
       categoryName: categoryName ?? this.categoryName,
+      createdAt: createdAt ?? this.createdAt,
+      isArchived: isArchived ?? this.isArchived,
       images: images ?? this.images,
       variants: variants ?? this.variants,
       discount: discount ?? this.discount,

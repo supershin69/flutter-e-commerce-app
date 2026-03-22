@@ -1,4 +1,5 @@
 import 'package:e_commerce_frontend/features/shop/controllers/product_controller.dart';
+import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:intl/intl.dart';
@@ -28,6 +29,9 @@ class ProductCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final imageUrl = product.imageUrl;
+    final hasVariants = product.variants.isNotEmpty;
+    final hasMultipleVariants = product.variants.length > 1;
+    final needsVariantSelection = !hasVariants || hasMultipleVariants;
     
     return GestureDetector(
       onTap: () {
@@ -71,15 +75,27 @@ class ProductCard extends StatelessWidget {
                               ),
                             ),
                           )
-                        : Image.network(
-                            imageUrl,
+                        : CachedNetworkImage(
+                            imageUrl: imageUrl,
                             fit: BoxFit.cover,
-                            errorBuilder: (context, error, stackTrace) {
+                            placeholder: (context, url) {
+                              return Container(
+                                color: Colors.grey[100],
+                                child: const Center(
+                                  child: SizedBox(
+                                    width: 18,
+                                    height: 18,
+                                    child: CircularProgressIndicator(strokeWidth: 2),
+                                  ),
+                                ),
+                              );
+                            },
+                            errorWidget: (context, url, error) {
                               return Container(
                                 color: Colors.grey[100],
                                 child: const Center(
                                   child: Icon(
-                                    Icons.image_not_supported,
+                                    Icons.broken_image_outlined,
                                     color: Colors.grey,
                                   ),
                                 ),
@@ -148,18 +164,55 @@ class ProductCard extends StatelessWidget {
                   ),
                 ),
               ),
+            if (needsVariantSelection)
+              Positioned(
+                top: 8,
+                right: 8,
+                child: Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                  decoration: BoxDecoration(
+                    color: Colors.black.withAlpha(153),
+                    borderRadius: BorderRadius.circular(8),
+                  ),
+                  child: Text(
+                    hasVariants ? 'Select variant' : 'View options',
+                    style: TextStyle(
+                      color: Colors.white,
+                      fontSize: 11,
+                      fontWeight: FontWeight.w600,
+                    ),
+                  ),
+                ),
+              ),
             Positioned(
               bottom: 55,
               right: 8,
               child: GestureDetector(
                 onTap: () async {
                    try {
+                     if (needsVariantSelection) {
+                       if (context.mounted) {
+                         ScaffoldMessenger.of(context).showSnackBar(
+                           SnackBar(
+                             content: Text(hasVariants ? 'Please select a variant first' : 'Open the product to view options'),
+                             duration: const Duration(seconds: 1),
+                           ),
+                         );
+                       }
+                       if (!context.mounted) return;
+                       Navigator.of(context).push(
+                         MaterialPageRoute(
+                           builder: (context) => ProductDetails(product: product),
+                         ),
+                       );
+                       return;
+                     }
                      final cartItem = CartItem(
                        id: DateTime.now().millisecondsSinceEpoch.toString(),
                        productId: product.id,
                        productName: product.name,
-                       variantId: product.variants.isNotEmpty ? product.variants.first.id : '',
-                       variantName: product.variants.isNotEmpty ? product.variants.first.attributes.map((a) => a.value).join(', ') : null,
+                       variantId: product.variants.first.id,
+                       variantName: product.variants.first.attributes.map((a) => a.value).join(', '),
                        price: product.displayPrice.toInt(),
                        quantity: 1,
                        imageUrl: imageUrl,
@@ -187,7 +240,7 @@ class ProductCard extends StatelessWidget {
                   width: 36,
                   height: 36,
                   decoration: BoxDecoration(
-                    color: Colors.grey[200],
+                    color: needsVariantSelection ? Colors.brown.shade300 : Colors.grey[200],
                     shape: BoxShape.circle,
                     boxShadow: [
                       BoxShadow(
@@ -198,8 +251,8 @@ class ProductCard extends StatelessWidget {
                     ],
                   ),
                   child: Icon(
-                    Icons.add,
-                    color: Colors.grey[800],
+                    needsVariantSelection ? Icons.tune : Icons.add,
+                    color: needsVariantSelection ? Colors.white : Colors.grey[800],
                   ),
                 ),
               ),

@@ -1,7 +1,5 @@
 import 'package:flutter/material.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
-import 'package:image_picker/image_picker.dart';
-import 'dart:io';
 import 'package:e_commerce_frontend/models/cart_item_model.dart';
 import 'package:e_commerce_frontend/models/user_model.dart';
 import 'package:e_commerce_frontend/services/cart_service.dart';
@@ -29,7 +27,7 @@ class _CheckoutVoucherState extends State<CheckoutVoucher> {
   late Future<UserModel?> _userFuture;
   late DateTime _orderDate;
   int _baseTotalPrice = 0; // Base price without delivery fee
-  int _deliveryFee = 3000; // Default to Standard delivery
+  int _deliveryFee = 0; // Delivery fee is now TBD (Manual Quote)
   int _totalPrice = 0; // Total including delivery fee
   
   // Form controllers for shipping details
@@ -38,11 +36,8 @@ class _CheckoutVoucherState extends State<CheckoutVoucher> {
   final TextEditingController _cityController = TextEditingController();
   final TextEditingController _streetController = TextEditingController();
   
-  // Delivery and Payment options
-  String _deliveryMethod = 'Standard'; // 'Standard' or 'Express'
-  String _paymentMethod = 'Cash on Delivery'; // 'Cash on Delivery', 'KPay', 'WavePay', or 'AYAPay'
-  File? _receiptFile; // Selected receipt image
-  bool _isUploadingReceipt = false;
+  // Delivery option
+  String _deliveryMethod = 'Car Gate'; // 'Car Gate' or 'Royal Express'
   
   bool _isSubmitting = false;
   bool _hasShippingInfo = false;
@@ -74,7 +69,7 @@ class _CheckoutVoucherState extends State<CheckoutVoucher> {
     if (mounted) {
       setState(() {
         _baseTotalPrice = total;
-        _deliveryFee = 3000; // Standard delivery default
+        _deliveryFee = 0; // Manual delivery quote system
         _totalPrice = _baseTotalPrice + _deliveryFee;
       });
     }
@@ -112,74 +107,10 @@ class _CheckoutVoucherState extends State<CheckoutVoucher> {
 
   void _updateDeliveryFee() {
     setState(() {
-      _deliveryFee = _deliveryMethod == 'Express' ? 5000 : 3000;
+      // Manual delivery quote: delivery fee is set by admin later
+      _deliveryFee = 0;
       _totalPrice = _baseTotalPrice + _deliveryFee;
     });
-  }
-
-  Future<String?> _uploadReceipt() async {
-    if (_receiptFile == null) return null;
-
-    try {
-      setState(() {
-        _isUploadingReceipt = true;
-      });
-
-      // Generate unique file name using timestamp
-      final fileName = 'receipt_${DateTime.now().millisecondsSinceEpoch}.jpg';
-      final filePath = 'payment_receipts/$fileName';
-
-      // Upload to Supabase Storage
-      await supabase.storage.from('payment_receipts').upload(
-        filePath,
-        _receiptFile!,
-        fileOptions: const FileOptions(
-          contentType: 'image/jpeg',
-          upsert: false,
-        ),
-      );
-
-      // Get public URL
-      final url = supabase.storage.from('payment_receipts').getPublicUrl(filePath);
-      
-      setState(() {
-        _isUploadingReceipt = false;
-      });
-
-      return url;
-    } catch (e) {
-      setState(() {
-        _isUploadingReceipt = false;
-      });
-      debugPrint('Error uploading receipt: $e');
-      throw Exception('Failed to upload receipt: $e');
-    }
-  }
-
-  Future<void> _pickReceiptImage() async {
-    try {
-      final ImagePicker picker = ImagePicker();
-      final XFile? image = await picker.pickImage(
-        source: ImageSource.gallery,
-        imageQuality: 85,
-      );
-
-      if (image != null) {
-        setState(() {
-          _receiptFile = File(image.path);
-        });
-      }
-    } catch (e) {
-      debugPrint('Error picking image: $e');
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text('Error selecting image: $e'),
-            backgroundColor: Colors.red,
-          ),
-        );
-      }
-    }
   }
 
   Future<void> _onConfirmOrder() async {
@@ -202,19 +133,6 @@ class _CheckoutVoucherState extends State<CheckoutVoucher> {
       if (!_formKey.currentState!.validate()) {
         return;
       }
-    }
-
-    // Validate receipt upload for mobile banking
-    final isMobileBanking = _paymentMethod == 'KPay' || _paymentMethod == 'WavePay' || _paymentMethod == 'AYAPay';
-    if (isMobileBanking && _receiptFile == null) {
-      if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('Please upload your payment receipt'),
-          backgroundColor: Colors.red,
-        ),
-      );
-      return;
     }
 
     // Get final customer details
@@ -284,65 +202,35 @@ class _CheckoutVoucherState extends State<CheckoutVoucher> {
         if (!mounted) return;
       }
 
-      // Upload receipt if mobile banking payment
-      String? receiptUrl;
-      if (isMobileBanking && _receiptFile != null) {
-        receiptUrl = await _uploadReceipt();
-        if (!mounted) return;
-        if (receiptUrl == null) {
-          throw Exception('Failed to upload payment receipt');
-        }
-      }
-
       // Map payment method to payment_status enum
-      // Adjust these values to match your actual payment_status enum values
       String paymentStatus = 'pending';
-      if (_paymentMethod == 'Cash on Delivery') {
-        paymentStatus = 'pending'; // or 'cod' depending on your enum
-      } else if (isMobileBanking) {
-        paymentStatus = receiptUrl != null ? 'paid' : 'pending';
-      }
-
-      // Map delivery method to determine status
-      // Adjust status values to match your actual order_status enum values
-      String orderStatus = 'processing';
+      String orderStatus = 'pending';
 
       // Create order (supports both authenticated and guest users)
       OrderModel? order;
       try {
-        // Map payment method to database format
-        String? dbPaymentMethod;
-        if (_paymentMethod == 'Cash on Delivery') {
-          dbPaymentMethod = 'cash-on-delivery';
-        } else if (_paymentMethod == 'KPay') {
-          dbPaymentMethod = 'KPay';
-        } else if (_paymentMethod == 'WavePay') {
-          dbPaymentMethod = 'WavePay';
-        } else if (_paymentMethod == 'AYAPay') {
-          dbPaymentMethod = 'AYAPay';
-        }
-
         // Map delivery method to shipping_method (database column name)
         String? dbShippingMethod;
-        if (_deliveryMethod == 'Standard') {
+        if (_deliveryMethod == 'Car Gate') {
           dbShippingMethod = 'standard';
-        } else if (_deliveryMethod == 'Express') {
+        } else if (_deliveryMethod == 'Royal Express') {
           dbShippingMethod = 'express';
+        } else {
+          dbShippingMethod = 'standard'; // Default fallback
         }
 
         order = await _checkoutService.createOrder(
           userId: currentUser.id, // Required - user must be logged in
           items: cartItems,
-          totalAmount: _totalPrice, // Already an int
+          totalAmount: _baseTotalPrice, // Delivery fee will be set by admin later
           city: city,
           street: street,
           phoneNumber: phoneNumber,
           customerName: customerName,
           status: orderStatus,
           paymentStatus: paymentStatus,
-          paymentMethod: dbPaymentMethod,
-          shippingMethod: dbShippingMethod, // Note: database uses shipping_method
-          receiptUrl: receiptUrl,
+          paymentMethod: 'cash-on-delivery', // Default for now, will be updated later
+          shippingMethod: dbShippingMethod,
         );
       } catch (e) {
         // Re-throw with more context
@@ -604,25 +492,6 @@ class _CheckoutVoucherState extends State<CheckoutVoucher> {
 
                   const SizedBox(height: 24),
 
-                  // Delivery Method Section
-                  _buildSectionHeader('Delivery Method'),
-                  const SizedBox(height: 12),
-                  _buildDeliveryMethodSelector(card, border, accent, muted),
-
-                  const SizedBox(height: 24),
-
-                  // Payment Method Section
-                  _buildSectionHeader('Payment Method'),
-                  const SizedBox(height: 12),
-                  // Use StatefulBuilder to localize state updates and prevent full rebuild
-                  StatefulBuilder(
-                    builder: (BuildContext context, StateSetter setState) {
-                      return _buildPaymentMethodSelector(card, border, accent, muted, setState);
-                    },
-                  ),
-
-                  const SizedBox(height: 24),
-
                   // Order Items Section
                   _buildSectionHeader('Order Items'),
                   const SizedBox(height: 12),
@@ -659,19 +528,22 @@ class _CheckoutVoucherState extends State<CheckoutVoucher> {
                         Row(
                           mainAxisAlignment: MainAxisAlignment.spaceBetween,
                           children: [
-                            Text(
-                              'Subtotal',
-                              style: TextStyle(
-                                color: muted,
-                                fontSize: 14,
+                            const Expanded(
+                              child: Text(
+                                'Subtotal',
+                                style: TextStyle(
+                                  color: muted,
+                                  fontSize: 14,
+                                ),
                               ),
                             ),
                             Text(
                               '$_baseTotalPrice MMK',
-                              style: TextStyle(
+                              style: const TextStyle(
                                 color: muted,
                                 fontSize: 14,
                               ),
+                              overflow: TextOverflow.ellipsis,
                             ),
                           ],
                         ),
@@ -679,19 +551,23 @@ class _CheckoutVoucherState extends State<CheckoutVoucher> {
                         Row(
                           mainAxisAlignment: MainAxisAlignment.spaceBetween,
                           children: [
-                            Text(
-                              'Delivery Fee ($_deliveryMethod)',
-                              style: TextStyle(
-                                color: muted,
-                                fontSize: 14,
+                            Expanded(
+                              child: Text(
+                                'Delivery Fee ($_deliveryMethod)',
+                                style: const TextStyle(
+                                  color: muted,
+                                  fontSize: 14,
+                                ),
                               ),
                             ),
                             Text(
-                              '$_deliveryFee MMK',
+                              _deliveryFee > 0 ? '$_deliveryFee MMK' : 'TBD',
                               style: TextStyle(
-                                color: muted,
+                                color: _deliveryFee > 0 ? muted : accent,
                                 fontSize: 14,
+                                fontWeight: _deliveryFee > 0 ? FontWeight.normal : FontWeight.bold,
                               ),
+                              overflow: TextOverflow.ellipsis,
                             ),
                           ],
                         ),
@@ -699,21 +575,24 @@ class _CheckoutVoucherState extends State<CheckoutVoucher> {
                         Row(
                           mainAxisAlignment: MainAxisAlignment.spaceBetween,
                           children: [
-                            const Text(
-                              'Total Amount',
-                              style: TextStyle(
-                                color: AppColors.textDark,
-                                fontSize: 20,
-                                fontWeight: FontWeight.bold,
+                            const Expanded(
+                              child: Text(
+                                'Total Amount',
+                                style: TextStyle(
+                                  color: AppColors.textDark,
+                                  fontSize: 20,
+                                  fontWeight: FontWeight.bold,
+                                ),
                               ),
                             ),
                             Text(
-                              '$_totalPrice MMK',
+                              _deliveryFee > 0 ? '$_totalPrice MMK' : '$_baseTotalPrice MMK + Fee',
                               style: TextStyle(
                                 color: accent,
                                 fontSize: 24,
                                 fontWeight: FontWeight.bold,
                               ),
+                              overflow: TextOverflow.ellipsis,
                             ),
                           ],
                         ),
@@ -1098,9 +977,9 @@ class _CheckoutVoucherState extends State<CheckoutVoucher> {
       child: Column(
         children: [
           _buildDeliveryOption(
-            'Standard Delivery',
-            '3,000 MMK',
-            'Standard',
+            'Car Gate',
+            'Quote will be provided later',
+            'Car Gate',
             Icons.local_shipping_outlined,
             card,
             border,
@@ -1109,9 +988,9 @@ class _CheckoutVoucherState extends State<CheckoutVoucher> {
           ),
           const SizedBox(height: 12),
           _buildDeliveryOption(
-            'Express Delivery',
-            '5,000 MMK',
-            'Express',
+            'Royal Express',
+            'Quote will be provided later',
+            'Royal Express',
             Icons.flash_on_outlined,
             card,
             border,
@@ -1193,295 +1072,5 @@ class _CheckoutVoucherState extends State<CheckoutVoucher> {
         ),
       ),
     );
-  }
-
-  Widget _buildPaymentMethodSelector(Color card, Color border, Color accent, Color muted, [StateSetter? localSetState]) {
-    final isMobileBanking = _paymentMethod == 'KPay' || _paymentMethod == 'WavePay' || _paymentMethod == 'AYAPay';
-    
-    return AnimatedSize(
-      duration: const Duration(milliseconds: 200),
-      curve: Curves.easeInOut,
-      child: Container(
-        padding: const EdgeInsets.all(16),
-        decoration: BoxDecoration(
-          color: card,
-          borderRadius: BorderRadius.circular(12),
-          border: Border.all(color: border),
-        ),
-        child: Column(
-          children: [
-            _buildPaymentOption(
-              'Cash on Delivery',
-              'Pay when you receive',
-              'Cash on Delivery',
-              Icons.money_outlined,
-              card,
-              border,
-              accent,
-              muted,
-              localSetState,
-            ),
-            const SizedBox(height: 12),
-            _buildPaymentOption(
-              'K-Pay',
-              'Mobile Banking',
-              'KPay',
-              Icons.qr_code_scanner,
-              card,
-              border,
-              accent,
-              muted,
-              localSetState,
-            ),
-            const SizedBox(height: 12),
-            _buildPaymentOption(
-              'Wave Pay',
-              'Mobile Banking',
-              'WavePay',
-              Icons.qr_code_scanner,
-              card,
-              border,
-              accent,
-              muted,
-              localSetState,
-            ),
-            const SizedBox(height: 12),
-            _buildPaymentOption(
-              'AYA Pay',
-              'Mobile Banking',
-              'AYAPay',
-              Icons.qr_code_scanner,
-              card,
-              border,
-              accent,
-              muted,
-              localSetState,
-            ),
-            // Show QR code and receipt upload if mobile banking is selected
-            if (isMobileBanking) ...[
-              const SizedBox(height: 16),
-              Divider(color: border),
-              const SizedBox(height: 16),
-              Container(
-                padding: const EdgeInsets.all(16),
-                decoration: BoxDecoration(
-                  color: accent.withAlpha(12),
-                  borderRadius: BorderRadius.circular(12),
-                  border: Border.all(color: accent.withAlpha(77)),
-                ),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.center,
-                  children: [
-                    // Scan to Pay label
-                    Row(
-                      mainAxisAlignment: MainAxisAlignment.center,
-                      children: [
-                        Icon(Icons.qr_code_scanner, size: 20, color: accent),
-                        const SizedBox(width: 8),
-                        Text(
-                          'Scan to Pay',
-                          style: TextStyle(
-                            color: accent,
-                            fontSize: 16,
-                            fontWeight: FontWeight.w600,
-                          ),
-                        ),
-                      ],
-                    ),
-                    const SizedBox(height: 8),
-                    // Instruction text
-                    Text(
-                      'Please scan the QR code and complete your payment.',
-                      style: TextStyle(
-                        color: muted,
-                        fontSize: 12,
-                      ),
-                      textAlign: TextAlign.center,
-                    ),
-                    const SizedBox(height: 16),
-                    // QR Code Image
-                    Container(
-                      padding: const EdgeInsets.all(12),
-                      decoration: BoxDecoration(
-                        color: Colors.white,
-                        borderRadius: BorderRadius.circular(8),
-                        border: Border.all(color: border),
-                      ),
-                      child: Image.asset(
-                        _getQRCodeAssetPath(),
-                        width: 200,
-                        height: 200,
-                        fit: BoxFit.contain,
-                        errorBuilder: (context, error, stackTrace) {
-                          return Container(
-                            width: 200,
-                            height: 200,
-                            color: Colors.grey[200],
-                            child: Column(
-                              mainAxisAlignment: MainAxisAlignment.center,
-                              children: [
-                                Icon(Icons.error_outline, color: Colors.grey[400], size: 48),
-                                const SizedBox(height: 8),
-                                Text(
-                                  'QR code not found',
-                                  style: TextStyle(color: Colors.grey[400], fontSize: 12),
-                                ),
-                              ],
-                            ),
-                          );
-                        },
-                      ),
-                    ),
-                    const SizedBox(height: 16),
-                    // Receipt upload section
-                    OutlinedButton.icon(
-                      onPressed: _isUploadingReceipt ? null : _pickReceiptImage,
-                      icon: _isUploadingReceipt
-                          ? const SizedBox(
-                              width: 16,
-                              height: 16,
-                              child: CircularProgressIndicator(strokeWidth: 2),
-                            )
-                          : const Icon(Icons.upload_file),
-                      label: Text(_receiptFile == null ? 'Upload Receipt' : 'Change Receipt'),
-                      style: OutlinedButton.styleFrom(
-                        foregroundColor: accent,
-                        side: BorderSide(color: accent),
-                        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-                      ),
-                    ),
-                    if (_receiptFile != null) ...[
-                      const SizedBox(height: 12),
-                      Container(
-                        padding: const EdgeInsets.all(8),
-                        decoration: BoxDecoration(
-                          color: Colors.green.withAlpha(25),
-                          borderRadius: BorderRadius.circular(6),
-                        ),
-                        child: Row(
-                          mainAxisAlignment: MainAxisAlignment.center,
-                          children: [
-                            const Icon(Icons.check_circle, size: 16, color: Colors.green),
-                            const SizedBox(width: 8),
-                            Text(
-                              'Receipt uploaded',
-                              style: TextStyle(
-                                color: Colors.green.shade700,
-                                fontSize: 12,
-                              ),
-                            ),
-                          ],
-                        ),
-                      ),
-                    ],
-                  ],
-                ),
-              ),
-            ],
-          ],
-        ),
-      ),
-    );
-  }
-
-  Widget _buildPaymentOption(
-    String title,
-    String subtitle,
-    String value,
-    IconData icon,
-    Color card,
-    Color border,
-    Color accent,
-    Color muted,
-    StateSetter? localSetState,
-  ) {
-    final isSelected = _paymentMethod == value;
-    return InkWell(
-      onTap: () {
-        // Use local setState if provided (from StatefulBuilder), otherwise use widget's setState
-        if (localSetState != null) {
-          localSetState(() {
-            _paymentMethod = value;
-            // Clear receipt if switching away from mobile banking
-            if (value == 'Cash on Delivery') {
-              _receiptFile = null;
-            }
-          });
-        } else {
-          setState(() {
-            _paymentMethod = value;
-            // Clear receipt if switching away from mobile banking
-            if (value == 'Cash on Delivery') {
-              _receiptFile = null;
-            }
-          });
-        }
-      },
-      borderRadius: BorderRadius.circular(8),
-      child: Container(
-        padding: const EdgeInsets.all(12),
-        decoration: BoxDecoration(
-          color: isSelected ? accent.withAlpha(25) : card,
-          borderRadius: BorderRadius.circular(8),
-          border: Border.all(
-            color: isSelected ? accent : border,
-            width: isSelected ? 2 : 1,
-          ),
-        ),
-        child: Row(
-          children: [
-            Icon(
-              icon,
-              color: isSelected ? accent : muted,
-              size: 24,
-            ),
-            const SizedBox(width: 12),
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    title,
-                    style: TextStyle(
-                      color: isSelected ? accent : AppColors.textDark,
-                      fontSize: 14,
-                      fontWeight: isSelected ? FontWeight.w600 : FontWeight.w500,
-                    ),
-                  ),
-                  const SizedBox(height: 2),
-                  Text(
-                    subtitle,
-                    style: TextStyle(
-                      color: muted,
-                      fontSize: 12,
-                    ),
-                  ),
-                ],
-              ),
-            ),
-            if (isSelected)
-              Icon(
-                Icons.check_circle,
-                color: accent,
-                size: 24,
-              ),
-          ],
-        ),
-      ),
-    );
-  }
-
-  /// Get the QR code asset path based on selected payment method
-  String _getQRCodeAssetPath() {
-    switch (_paymentMethod) {
-      case 'KPay':
-        return 'assets/images/payment/kpay.jpg';
-      case 'WavePay':
-        return 'assets/images/payment/wave_pay.png';
-      case 'AYAPay':
-        return 'assets/images/payment/aya_pay.png';
-      default:
-        return 'assets/images/payment/kpay.jpg'; // Default fallback
-    }
   }
 }

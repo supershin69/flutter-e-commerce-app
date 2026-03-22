@@ -1,16 +1,24 @@
 import 'dart:async';
+import 'dart:convert';
 import 'package:firebase_core/firebase_core.dart';
 import 'package:firebase_messaging/firebase_messaging.dart';
 import 'package:flutter_local_notifications/flutter_local_notifications.dart';
+import 'package:flutter/material.dart';
+import 'package:get/get.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
-import 'package:flutter/foundation.dart';
+import 'package:e_commerce_frontend/features/personalization/screens/orders/order_detail_screen.dart';
 
 // Background message handler must be a top-level function
 @pragma('vm:entry-point')
 Future<void> _firebaseMessagingBackgroundHandler(RemoteMessage message) async {
   await Firebase.initializeApp();
-  debugPrint("Handling a background message: ${message.messageId}");
-  debugPrint("Background Notification Data: ${message.data}");
+  debugPrint("--- FCM Background Message Received ---");
+  debugPrint("Message ID: ${message.messageId}");
+  debugPrint("Data: ${message.data}");
+  if (message.notification != null) {
+    debugPrint("Notification Title: ${message.notification!.title}");
+  }
+  debugPrint("---------------------------------------");
 }
 
 class NotificationService {
@@ -41,9 +49,6 @@ class NotificationService {
 
     // 5. Get and Save Token
     await _setupTokenManagement();
-
-    // 6. Handle interactions (optional, but good practice)
-    await _setupInteractions();
 
     _isInitialized = true;
     debugPrint("NotificationService initialized");
@@ -77,7 +82,19 @@ class NotificationService {
       initializationSettings,
       onDidReceiveNotificationResponse: (NotificationResponse response) {
         debugPrint('Notification clicked: ${response.payload}');
-        // Handle notification tap logic here
+        final payload = _parsePayload(response.payload);
+        if (payload['type'] == 'delivery_fee_set') {
+          final orderId = payload['order_id']?.toString();
+          if (orderId == null || orderId.isEmpty) return;
+          final context = Get.context;
+          if (context != null) {
+            Navigator.of(context).push(
+              MaterialPageRoute(builder: (_) => OrderDetailScreen.byId(orderId: orderId)),
+            );
+          } else {
+            Get.to(() => OrderDetailScreen.byId(orderId: orderId));
+          }
+        }
       },
     );
 
@@ -95,15 +112,17 @@ class NotificationService {
   }
 
   Future<void> _handleForegroundMessage(RemoteMessage message) async {
-    debugPrint('Got a message whilst in the foreground!');
-    debugPrint('Message data: ${message.data}');
+    debugPrint('--- FCM Foreground Message Received ---');
+    debugPrint('Data: ${message.data}');
 
     if (message.notification != null) {
-      debugPrint('Message also contained a notification: ${message.notification}');
+      debugPrint('Notification Title: ${message.notification!.title}');
+      debugPrint('Notification Body: ${message.notification!.body}');
       
       // Show local notification
       _showLocalNotification(message);
     }
+    debugPrint('---------------------------------------');
   }
 
   Future<void> _showLocalNotification(RemoteMessage message) async {
@@ -126,9 +145,33 @@ class NotificationService {
           ),
           iOS: DarwinNotificationDetails(),
         ),
-        payload: message.data.toString(),
+        payload: jsonEncode(message.data),
       );
     }
+  }
+
+  Map<String, dynamic> _parsePayload(String? payload) {
+    if (payload == null || payload.trim().isEmpty) return {};
+    try {
+      final decoded = jsonDecode(payload);
+      if (decoded is Map) {
+        return Map<String, dynamic>.from(decoded);
+      }
+    } catch (_) {}
+
+    final raw = payload.trim();
+    if (!raw.startsWith('{') || !raw.endsWith('}')) return {};
+    final inner = raw.substring(1, raw.length - 1);
+    final parts = inner.split(',');
+    final map = <String, dynamic>{};
+    for (final part in parts) {
+      final idx = part.indexOf(':');
+      if (idx <= 0) continue;
+      final key = part.substring(0, idx).trim();
+      final value = part.substring(idx + 1).trim();
+      map[key] = value;
+    }
+    return map;
   }
 
   Future<void> _setupTokenManagement() async {
@@ -181,39 +224,6 @@ class NotificationService {
       debugPrint("FCM Token saved to Supabase (user_tokens & profiles) for user ${user.id}");
     } catch (e) {
       debugPrint("Error saving FCM token to Supabase: $e");
-    }
-  }
-
-  Future<void> _setupInteractions() async {
-    // Get any messages which caused the application to open from
-    // a terminated state.
-    RemoteMessage? initialMessage =
-        await _firebaseMessaging.getInitialMessage();
-
-    if (initialMessage != null) {
-      _handleMessageInteraction(initialMessage);
-    }
-
-    // Also handle any interaction when the app is in the background via a
-    // Stream listener
-    FirebaseMessaging.onMessageOpenedApp.listen(_handleMessageInteraction);
-  }
-
-  void _handleMessageInteraction(RemoteMessage message) {
-    debugPrint("User tapped on notification: ${message.data}");
-    
-    if (message.data['type'] == 'price_drop') {
-      final productId = message.data['product_id'];
-      if (productId != null) {
-        // Use Get.toNamed if you have named routes, or Get.to()
-        // Since we don't know if product object is fully available, 
-        // we might need to fetch it or navigate to a wrapper page.
-        // For now, let's assume we can navigate to home or product page.
-        // Ideally: Get.to(() => ProductDetailPage(productId: productId));
-        // But ProductDetails takes a Product object.
-        // We can navigate to a "ProductLoaderPage" or handle it in main navigation.
-        debugPrint("Navigate to product: $productId");
-      }
     }
   }
 }

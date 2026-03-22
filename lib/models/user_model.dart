@@ -1,3 +1,27 @@
+enum UserRole {
+  user,
+  admin,
+  moderator;
+
+  static UserRole fromAny(dynamic value) {
+    final v = value?.toString().trim().toLowerCase();
+    if (v == 'admin') return UserRole.admin;
+    if (v == 'moderator') return UserRole.moderator;
+    return UserRole.user;
+  }
+
+  String get value {
+    switch (this) {
+      case UserRole.user:
+        return 'user';
+      case UserRole.admin:
+        return 'admin';
+      case UserRole.moderator:
+        return 'moderator';
+    }
+  }
+}
+
 class UserModel {
   final String id;
   final String email;
@@ -5,6 +29,7 @@ class UserModel {
   final String? avatarUrl;
   final String phoneNumber;
   final String shippingAddress;
+  final UserRole role;
 
   UserModel({
     required this.id,
@@ -13,7 +38,13 @@ class UserModel {
     this.avatarUrl,
     required this.phoneNumber,
     required this.shippingAddress,
+    this.role = UserRole.user,
   });
+
+  bool isAdmin() => role == UserRole.admin;
+  bool isModerator() => role == UserRole.moderator;
+  bool isUser() => role == UserRole.user;
+  bool isStaff() => isAdmin() || isModerator();
 
   /// Convert UserModel to JSON map
   Map<String, dynamic> toJson() {
@@ -24,6 +55,7 @@ class UserModel {
       'avatar_url': avatarUrl,
       'phone_number': phoneNumber,
       'shipping_address': shippingAddress,
+      'role': role.value,
     };
   }
 
@@ -36,6 +68,7 @@ class UserModel {
       avatarUrl: json['avatar_url'] as String? ?? json['avatar'] as String?,
       phoneNumber: json['phone_number'] as String? ?? json['phone'] as String? ?? '',
       shippingAddress: json['shipping_address'] as String? ?? json['address'] as String? ?? '',
+      role: UserRole.fromAny(json['role']),
     );
   }
 
@@ -49,6 +82,7 @@ class UserModel {
       avatarUrl: map['avatar'] as String? ?? map['avatar_url'] as String?,
       phoneNumber: map['phone'] as String? ?? map['phone_number'] as String? ?? '',
       shippingAddress: map['address'] as String? ?? map['shipping_address'] as String? ?? '',
+      role: UserRole.fromAny(map['role']),
     );
   }
 
@@ -60,6 +94,7 @@ class UserModel {
     String? avatarUrl,
     String? phoneNumber,
     String? shippingAddress,
+    UserRole? role,
   }) {
     return UserModel(
       id: id ?? this.id,
@@ -68,11 +103,12 @@ class UserModel {
       avatarUrl: avatarUrl ?? this.avatarUrl,
       phoneNumber: phoneNumber ?? this.phoneNumber,
       shippingAddress: shippingAddress ?? this.shippingAddress,
+      role: role ?? this.role,
     );
   }
 
   @override
   String toString() {
-    return 'UserModel(id: $id, email: $email, name: $name, phoneNumber: $phoneNumber, shippingAddress: $shippingAddress)';
+    return 'UserModel(id: $id, email: $email, name: $name, role: ${role.value}, phoneNumber: $phoneNumber, shippingAddress: $shippingAddress)';
   }
 }

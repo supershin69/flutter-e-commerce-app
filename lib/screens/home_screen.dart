@@ -13,6 +13,7 @@ import 'package:e_commerce_frontend/widgets/product_card.dart';
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
+import 'package:e_commerce_frontend/features/personalization/screens/orders/order_detail_screen.dart';
 
 import '/widgets/bottom_nav_bar.dart';
 
@@ -97,6 +98,10 @@ class _HomePageState extends State<HomePage> {
   late Future<List<Product>> _productsFuture;
   late Future<List<Product>> _latestProductsFuture;
   late Future<List<Brand>> _brandsFuture;
+  List<Product> _popularProductsCache = const [];
+  DateTime? _popularProductsCacheAt;
+  List<Product> _latestProductsCache = const [];
+  DateTime? _latestProductsCacheAt;
 
   @override
   void initState() {
@@ -115,78 +120,108 @@ class _HomePageState extends State<HomePage> {
   Future<List<Brand>> _fetchBrands() async {
     try {
       final supabase = Supabase.instance.client;
+      debugPrint('--- Diagnostic: Fetching brands ---');
+      
       // Fetch brands from product_catalog to get active brands
       final catalogData = await supabase.from('product_catalog').select('brand_name');
+      debugPrint('Catalog data count: ${catalogData.length}');
       
       final activeBrandNames = (catalogData as List<dynamic>)
           .map((e) => e['brand_name'] as String?)
           .where((name) => name != null && name.isNotEmpty)
           .toSet();
+      debugPrint('Active brand names: $activeBrandNames');
 
-      if (activeBrandNames.isEmpty) return [];
+      if (activeBrandNames.isEmpty) {
+        debugPrint('Warning: No active brand names found in product_catalog');
+        return [];
+      }
 
       // Fetch brand details (logo, etc.) from brands table
       final brandsData = await supabase
           .from('brands')
           .select('id, name, logo_url');
+      debugPrint('Brands table data count: ${brandsData.length}');
       
       final allBrands = (brandsData as List<dynamic>)
           .map((e) => Brand.fromMap(e as Map<String, dynamic>))
           .toList();
 
       // Filter to only include active brands
-      return allBrands.where((b) => activeBrandNames.contains(b.name)).toList();
-    } catch (e) {
+      final filteredBrands = allBrands.where((b) => activeBrandNames.contains(b.name)).toList();
+      debugPrint('Filtered active brands count: ${filteredBrands.length}');
+      return filteredBrands;
+    } catch (e, stack) {
       debugPrint('Error fetching brands: $e');
+      debugPrint('Stack trace: $stack');
       return [];
     }
   }
 
-  Future<List<Product>> _fetchLatestProducts() async {
+  Future<List<Product>> _fetchLatestProducts({bool forceRefresh = false}) async {
     try {
       final supabase = Supabase.instance.client;
-      // Fetch latest products, assume default sort or just another set
-      // Trying to sort by created_at if possible, otherwise just limit
-      final response = await supabase
-          .from('product_catalog')
-          .select()
-          // .order('created_at', ascending: false) // Uncomment if created_at exists
-          .limit(10);
-
-      return (response as List<dynamic>)
-          .map((e) => Product.fromMap(e as Map<String, dynamic>))
-          .toList();
-    } catch (e) {
-      debugPrint('Error fetching latest products: $e');
-      return [];
-    }
-  }
-
-  Future<List<Product>> _fetchPopularProducts() async {
-    try {
-      final supabase = Supabase.instance.client;
-      // Use the same source as `ProductsPage` so it matches `Product.fromMap`.
-      // `product_catalog` is expected to expose: id, name, description, min_price,
-      // max_price, brand_name, category_name, images, variants, discount.
-      final response = await supabase
-          .from('product_catalog')
-          .select()
-          .limit(8);
-
-      if (response.isNotEmpty) {
-        final first = response.first;
-        debugPrint('product_catalog columns: ${first.keys.toList()}');
+      debugPrint('--- Diagnostic: Fetching latest products ---');
+      
+      if (!forceRefresh &&
+          _latestProductsCacheAt != null &&
+          _latestProductsCache.isNotEmpty &&
+          DateTime.now().difference(_latestProductsCacheAt!) < const Duration(minutes: 2)) {
+        return _latestProductsCache;
       }
 
-      return (response as List<dynamic>)
+      final response = await supabase
+          .from('latest_products')
+          .select()
+          .order('created_at', ascending: false)
+          .order('id', ascending: false)
+          .limit(10);
+      debugPrint('Latest products view response count: ${response.length}');
+
+      final products = (response as List<dynamic>)
           .map((e) => Product.fromMap(e as Map<String, dynamic>))
           .toList();
-    } catch (e) {
-      debugPrint('Error details: $e');
+      _latestProductsCache = products;
+      _latestProductsCacheAt = DateTime.now();
+      debugPrint('latest_products successfully parsed: ${products.length}');
+      return products;
+    } catch (e, stack) {
+      debugPrint('Error fetching latest products: $e');
+      debugPrint('Stack trace: $stack');
       return [];
     }
+  }
 
-      
+  Future<List<Product>> _fetchPopularProducts({bool forceRefresh = false}) async {
+    try {
+      debugPrint('--- Diagnostic: Fetching popular products ---');
+      if (!forceRefresh &&
+          _popularProductsCacheAt != null &&
+          _popularProductsCache.isNotEmpty &&
+          DateTime.now().difference(_popularProductsCacheAt!) < const Duration(minutes: 2)) {
+        return _popularProductsCache;
+      }
+
+      final supabase = Supabase.instance.client;
+      // Fetch from popular_products view: already sorted by total_sold desc
+      final response = await supabase
+          .from('popular_products')
+          .select()
+          .limit(8);
+      debugPrint('Popular products view response count: ${response.length}');
+
+      final products = (response as List<dynamic>)
+          .map((e) => Product.fromMap(e as Map<String, dynamic>))
+          .toList();
+      _popularProductsCache = products;
+      _popularProductsCacheAt = DateTime.now();
+      debugPrint('popular_products successfully parsed: ${products.length}');
+      return products;
+    } catch (e, stack) {
+      debugPrint('Error fetching popular products: $e');
+      debugPrint('Stack trace: $stack');
+      return [];
+    }
   }
     
 
@@ -239,8 +274,8 @@ class _HomePageState extends State<HomePage> {
 
   Future<void> _onRefresh() async {
     setState(() {
-      _productsFuture = _fetchPopularProducts();
-      _latestProductsFuture = _fetchLatestProducts();
+      _productsFuture = _fetchPopularProducts(forceRefresh: true);
+      _latestProductsFuture = _fetchLatestProducts(forceRefresh: true);
       _brandsFuture = _fetchBrands();
     });
     
@@ -255,21 +290,21 @@ class _HomePageState extends State<HomePage> {
   // pages for bottom navigation
   int _selectedIndex = 0;
 
-  late final List<Widget> _pages = [
-    _buildHomeContent(), // index 0 → Home
-    const StorePage(), // index 1 → Store
-    const WishlistPage(), // index 2 → Wishlist
-    const AuthGate(), // index 3 → Profile
-  ];
-
   @override
   Widget build(BuildContext context) {
+    final pages = <Widget>[
+      _buildHomeContent(),
+      const StorePage(),
+      const WishlistPage(),
+      const AuthGate(),
+    ];
+
     return Scaffold(
       backgroundColor: AppColors.whiteBackground,
       // Remove AppBar - we'll use custom header
       body: IndexedStack(
         index: _selectedIndex,
-        children: _pages,
+        children: pages,
       ),
 
       // Bottom Navigation Bar

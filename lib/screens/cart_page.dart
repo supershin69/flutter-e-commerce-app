@@ -68,6 +68,55 @@ class _CartPageState extends State<CartPage> {
     }
   }
 
+  Future<void> _debugCart() async {
+    final raw = await _cartService.getRawCartItemMaps();
+    if (!mounted) return;
+
+    if (raw.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Cart is empty (no raw items)')),
+      );
+      return;
+    }
+
+    final lines = raw.map((m) {
+      final product = (m['productName'] ?? m['product_name'] ?? '').toString();
+      final variantId = (m['variantId'] ?? m['variant_id'] ?? '').toString();
+      final quantity = (m['quantity'] ?? '').toString();
+      return 'product="$product" variant_id="$variantId" qty=$quantity';
+    }).toList();
+
+    await showDialog<void>(
+      context: context,
+      builder: (context) {
+        return AlertDialog(
+          title: const Text('Cart Debug'),
+          content: SizedBox(
+            width: double.maxFinite,
+            child: SingleChildScrollView(
+              child: SelectableText(lines.join('\n')),
+            ),
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(context),
+              child: const Text('Close'),
+            ),
+          ],
+        );
+      },
+    );
+  }
+
+  Future<void> _fixCart() async {
+    final removed = await _cartService.cleanInvalidCartItems();
+    await _loadCart();
+    if (!mounted) return;
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(content: Text(removed > 0 ? 'Removed $removed invalid cart item(s)' : 'No invalid items found')),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     const bg = Color(0xFF0F0F10);
@@ -86,6 +135,18 @@ class _CartPageState extends State<CartPage> {
             fontWeight: FontWeight.w700,
           ),
         ),
+        actions: [
+          IconButton(
+            onPressed: _debugCart,
+            tooltip: 'Debug Cart',
+            icon: const Icon(Icons.bug_report_outlined),
+          ),
+          IconButton(
+            onPressed: _fixCart,
+            tooltip: 'Fix Cart',
+            icon: const Icon(Icons.build_outlined),
+          ),
+        ],
         elevation: 0,
       ),
       body: FutureBuilder<List<CartItem>>(

@@ -13,6 +13,16 @@ class OrderSuccessPage extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final accent = Colors.brown.shade300;
+    final isPendingFee = order.deliveryFeeStatus == 'pending_fee';
+    final isFeeSet = order.deliveryFeeStatus == 'fee_set';
+    final headline = isPendingFee
+        ? 'Order Placed'
+        : 'Order Confirmed!';
+    final message = isPendingFee
+        ? 'We will notify you once the delivery fee is confirmed by admin.'
+        : (isFeeSet
+            ? 'Delivery fee is ready. Please approve it to start processing.'
+            : 'Your order has been placed successfully');
 
     return Scaffold(
       backgroundColor: Colors.white,
@@ -39,8 +49,8 @@ class OrderSuccessPage extends StatelessWidget {
               const SizedBox(height: 24),
               
               // Success Message
-              const Text(
-                'Order Confirmed!',
+              Text(
+                headline,
                 style: TextStyle(
                   fontSize: 28,
                   fontWeight: FontWeight.bold,
@@ -50,7 +60,7 @@ class OrderSuccessPage extends StatelessWidget {
               const SizedBox(height: 12),
               
               Text(
-                'Your order has been placed successfully',
+                message,
                 style: TextStyle(
                   fontSize: 16,
                   color: Colors.grey[600],
@@ -71,7 +81,7 @@ class OrderSuccessPage extends StatelessWidget {
                   children: [
                     _buildDetailRow('Order ID', order.id),
                     const Divider(height: 24),
-                    _buildDetailRow('Total Amount', '${order.totalAmount} MMK'),
+                    _buildDetailRow(isPendingFee ? 'Subtotal' : 'Total Amount', '${order.totalAmount} MMK'),
                     const Divider(height: 24),
                     _buildDetailRow('Status', order.status),
                   ],

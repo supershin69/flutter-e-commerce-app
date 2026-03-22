@@ -5,6 +5,58 @@ import '../models/cart_item_model.dart';
 class CartService {
   static const String _cartKey = 'cart_items';
 
+  static final RegExp _uuidRegex = RegExp(
+    r'^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-5][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}$',
+  );
+
+  static bool _isValidUuid(String value) {
+    final v = value.trim();
+    if (v.isEmpty) return false;
+    return _uuidRegex.hasMatch(v);
+  }
+
+  Future<List<Map<String, dynamic>>> getRawCartItemMaps() async {
+    final prefs = await SharedPreferences.getInstance();
+    final cartJson = prefs.getString(_cartKey);
+
+    if (cartJson == null || cartJson.isEmpty) return [];
+
+    final decoded = json.decode(cartJson);
+    if (decoded is! List) return [];
+
+    return decoded
+        .whereType<Map>()
+        .map((e) => Map<String, dynamic>.from(e))
+        .toList();
+  }
+
+  Future<int> cleanInvalidCartItems() async {
+    final raw = await getRawCartItemMaps();
+    if (raw.isEmpty) return 0;
+
+    final validItems = <CartItem>[];
+    var removed = 0;
+
+    for (final map in raw) {
+      try {
+        final item = CartItem.fromMap(map);
+        if (!_isValidUuid(item.variantId) || item.quantity <= 0) {
+          removed++;
+          continue;
+        }
+        validItems.add(item);
+      } catch (_) {
+        removed++;
+      }
+    }
+
+    if (removed > 0) {
+      await _saveCartItems(validItems);
+    }
+
+    return removed;
+  }
+
   // Get all cart items
   Future<List<CartItem>> getCartItems() async {
     try {
@@ -15,8 +67,34 @@ class CartService {
         return [];
       }
 
-      final List<dynamic> cartList = json.decode(cartJson);
-      return cartList.map((item) => CartItem.fromMap(item as Map<String, dynamic>)).toList();
+      final decoded = json.decode(cartJson);
+      if (decoded is! List) return [];
+
+      final validItems = <CartItem>[];
+      var removed = 0;
+
+      for (final raw in decoded) {
+        try {
+          if (raw is! Map) {
+            removed++;
+            continue;
+          }
+          final item = CartItem.fromMap(Map<String, dynamic>.from(raw));
+          if (!_isValidUuid(item.variantId) || item.quantity <= 0) {
+            removed++;
+            continue;
+          }
+          validItems.add(item);
+        } catch (_) {
+          removed++;
+        }
+      }
+
+      if (removed > 0) {
+        await _saveCartItems(validItems);
+      }
+
+      return validItems;
     } catch (e) {
       return [];
     }

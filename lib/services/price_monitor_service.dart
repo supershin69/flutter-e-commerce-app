@@ -74,6 +74,7 @@ class PriceMonitorService {
     try {
       final notification = {
         'user_id': alert['user_id'],
+        'type': 'price_drop',
         'title': 'Price Drop Alert! 🏷️',
         'body': '${alert['products']['name']} is now ${alert['current_price']} MMK',
         'data': {
