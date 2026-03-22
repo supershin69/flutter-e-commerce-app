@@ -1,6 +1,5 @@
-import 'package:e_commerce_frontend/screens/NotificationPage.dart';
-import 'package:e_commerce_frontend/screens/order_page.dart';
-import 'package:e_commerce_frontend/screens/wishlist_page.dart';
+import 'package:e_commerce_frontend/features/personalization/screens/orders/orders.dart';
+import 'package:e_commerce_frontend/features/admin/screens/admin_orders_dashboard.dart';
 import 'package:flutter/material.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
@@ -18,6 +17,8 @@ class _ProfilePageState extends State<ProfilePage> {
   String _name = 'Loading...';
   String _email = '';
   String? _avatarUrl;
+  String _role = 'user';
+  bool get _isStaff => _role == 'admin' || _role == 'moderator';
 
   @override
   void initState() {
@@ -42,7 +43,7 @@ class _ProfilePageState extends State<ProfilePage> {
       // Fetch profile data from your Postgres table
       final data = await _supabase
           .from('profiles')
-          .select('name, avatar')
+          .select('name, avatar, role')
           .eq('user_id', user.id)
           .single();
 
@@ -50,6 +51,7 @@ class _ProfilePageState extends State<ProfilePage> {
         setState(() {
           _name = data['name'] ?? 'User';
           _avatarUrl = data['avatar']; // If you have avatars implemented
+          _role = (data['role']?.toString().trim().isNotEmpty == true) ? data['role'].toString() : 'user';
           _isLoading = false;
         });
       }
@@ -104,20 +106,26 @@ class _ProfilePageState extends State<ProfilePage> {
                       icon: Icons.shopping_bag_outlined,
                       title: 'My Orders',
                       onTap: () {
-                         Navigator.push(context, MaterialPageRoute(builder: (_) => OrderPage()));
-                      },
-                    ),
-                    _buildDivider(),
-                    _buildListTile(
-                      icon: Icons.favorite_border,
-                      title: 'Wishlist',
-                      onTap: () {
-                        Navigator.push(context, MaterialPageRoute(builder: (_) => WishlistPage()));
+                         Navigator.push(context, MaterialPageRoute(builder: (_) => const OrderHistoryScreen()));
                       },
                     ),
                   ]),
 
                   const SizedBox(height: 20),
+
+                  if (_isStaff) ...[
+                    _buildSectionHeader('ADMIN'),
+                    _buildSettingsContainer([
+                      _buildListTile(
+                        icon: Icons.admin_panel_settings_outlined,
+                        title: 'Orders: Set Delivery Fee',
+                        onTap: () {
+                          Navigator.push(context, MaterialPageRoute(builder: (_) => const AdminOrdersDashboard()));
+                        },
+                      ),
+                    ]),
+                    const SizedBox(height: 20),
+                  ],
 
                   // Section 2: Account Settings
                   _buildSectionHeader('SETTINGS'),
@@ -235,7 +243,7 @@ class _ProfilePageState extends State<ProfilePage> {
         borderRadius: BorderRadius.circular(12),
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withOpacity(0.05),
+            color: Colors.black.withAlpha(13),
             blurRadius: 10,
             offset: const Offset(0, 4),
           ),
