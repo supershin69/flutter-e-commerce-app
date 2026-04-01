@@ -4,7 +4,6 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 import '../../models/category_model.dart';
 import '../../models/brand_model.dart';
 import '../../models/product_model.dart';
-import '../products_page.dart';
 import '../all_brands_page.dart';
 import '../cart_page.dart';
 import '../../services/cart_service.dart';
@@ -232,6 +231,8 @@ class _StorePageState extends State<StorePage> {
           grouped[brandName] = BrandProductsData(
             brandId: brandId,
             brandName: brandName,
+            categoryId: categoryId,
+            categoryName: categoryName,
             products: brandProducts,
           );
         } catch (e) {
@@ -241,6 +242,8 @@ class _StorePageState extends State<StorePage> {
           grouped[brandName] = BrandProductsData(
             brandId: '',
             brandName: brandName,
+            categoryId: categoryId,
+            categoryName: categoryName,
             products: brandProducts,
           );
         }
@@ -434,22 +437,18 @@ class _StorePageState extends State<StorePage> {
                           border: border,
                           muted: muted,
                           onTap: () {
-                            // Navigate to products page
-                            if (_selectedCategoryId != null) {
-                              Navigator.of(context).push(
-                                MaterialPageRoute(
-                                  builder: (context) => ProductsPage(
-                                    categoryId: _selectedCategoryId!,
-                                    categoryName: _categories[_activeTabIndex].name,
-                                    brandId: brandData.brand.id,
-                                    brandName: brandData.brand.name,
-                                  ),
+                            // Navigate to brand products page (all products for this brand)
+                            Navigator.of(context).push(
+                              MaterialPageRoute(
+                                builder: (context) => BrandProductsPage(
+                                  brandId: brandData.brand.id,
+                                  brandName: brandData.brand.name,
                                 ),
-                              ).then((_) {
-                                // Refresh cart count when returning from products page
-                                _loadCartCount();
-                              });
-                            }
+                              ),
+                            ).then((_) {
+                              // Refresh cart count when returning from brand products page
+                              _loadCartCount();
+                            });
                           },
                         );
                       },
@@ -576,19 +575,19 @@ class _StorePageState extends State<StorePage> {
                             border: border,
                             muted: muted,
                             onTap: () {
-                              // Navigate to products page for this brand
-                              if (_selectedCategoryId != null && brandId.isNotEmpty) {
+                              // Navigate to brand products page for this brand and category
+                              if (brandName.isNotEmpty) {
                                 Navigator.of(context).push(
                                   MaterialPageRoute(
-                                    builder: (context) => ProductsPage(
-                                      categoryId: _selectedCategoryId!,
-                                      categoryName: _categories[_activeTabIndex].name,
+                                    builder: (context) => BrandProductsPage(
                                       brandId: brandId,
                                       brandName: brandName,
+                                      categoryId: brandData.categoryId,
+                                      categoryName: brandData.categoryName,
                                     ),
                                   ),
                                 ).then((_) {
-                                  // Refresh cart count when returning from products page
+                                  // Refresh cart count when returning from brand products page
                                   _loadCartCount();
                                 });
                               }
@@ -674,10 +673,14 @@ class BrandWithCount {
 class BrandProductsData {
   final String brandId;
   final String brandName;
+  final String categoryId;
+  final String categoryName;
   final List<Product> products;
   BrandProductsData({
     required this.brandId,
     required this.brandName,
+    required this.categoryId,
+    required this.categoryName,
     required this.products,
   });
 }

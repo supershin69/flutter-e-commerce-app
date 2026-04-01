@@ -405,28 +405,13 @@ class _ProductDetailState extends State<ProductDetails> {
       }
     }
 
-    final debugTrailing = kDebugMode
-        ? Material(
-            color: AppColors.appbarColor.withAlpha(204),
-            shape: const CircleBorder(),
-            child: InkWell(
-              customBorder: const CircleBorder(),
-              onTap: _showAvailabilityDebug,
-              child: const Padding(
-                padding: EdgeInsets.all(10),
-                child: Icon(Icons.bug_report_outlined, color: Colors.white, size: 20),
-              ),
-            ),
-          )
-        : null;
-
     return AnnotatedRegion<SystemUiOverlayStyle>(
       value: SystemUiOverlayStyle.dark,
       child: Scaffold(
         extendBodyBehindAppBar: true,
-        appBar: PreferredSize(
-          preferredSize: const Size.fromHeight(56),
-          child: TransparentAppbar(trailing: debugTrailing),
+        appBar: const PreferredSize(
+          preferredSize: Size.fromHeight(56),
+          child: TransparentAppbar(),
         ),
         body: SingleChildScrollView(
           child: Column(

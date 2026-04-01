@@ -327,11 +327,15 @@ class _BrandCard extends StatelessWidget {
 class BrandProductsPage extends StatefulWidget {
   final String brandId;
   final String brandName;
+  final String? categoryId;
+  final String? categoryName;
 
   const BrandProductsPage({
     super.key,
     required this.brandId,
     required this.brandName,
+    this.categoryId,
+    this.categoryName,
   });
 
   @override
@@ -345,7 +349,7 @@ class _BrandProductsPageState extends State<BrandProductsPage> {
   @override
   void initState() {
     super.initState();
-    debugPrint('🟢 BrandProductsPage initState() for: ${widget.brandName}');
+    debugPrint('🟢 BrandProductsPage initState() for: ${widget.brandName} (Category: ${widget.categoryName})');
     _productsFuture = fetchBrandProducts();
     // Also print immediately to see if initState is called
     _productsFuture.then((products) {
@@ -358,12 +362,22 @@ class _BrandProductsPageState extends State<BrandProductsPage> {
   Future<List<Product>> fetchBrandProducts() async {
     try {
       debugPrint('=== Fetching products for brand: "${widget.brandName}" ===');
+      if (widget.categoryName != null) {
+        debugPrint('--- With category filter: "${widget.categoryName}" ---');
+      }
       
-      // Fetch all products from this brand using product_catalog
-      final data = await supabase
+      // Fetch products from this brand using product_catalog
+      var query = supabase
           .from('product_catalog')
           .select()
           .eq('brand_name', widget.brandName);
+      
+      // Apply optional category filter
+      if (widget.categoryName != null && widget.categoryName!.isNotEmpty) {
+        query = query.eq('category_name', widget.categoryName!);
+      }
+      
+      final data = await query;
       
       debugPrint('Raw data fetched: ${data.length} items');
       if (data.isNotEmpty) {
@@ -372,16 +386,7 @@ class _BrandProductsPageState extends State<BrandProductsPage> {
       }
       
       if (data.isEmpty) {
-        debugPrint('No products found for brand: "${widget.brandName}"');
-        // Try case-insensitive search as fallback
-        debugPrint('Attempting case-insensitive search...');
-        final allData = await supabase
-            .from('product_catalog')
-            .select('brand_name');
-        
-        final uniqueBrands = allData.map((e) => e['brand_name']?.toString().toLowerCase()).toSet();
-        debugPrint('Available brands in database: $uniqueBrands');
-        
+        debugPrint('No products found for brand: "${widget.brandName}"${widget.categoryName != null ? ' in category: "${widget.categoryName}"' : ''}');
         return [];
       }
       
@@ -393,7 +398,6 @@ class _BrandProductsPageState extends State<BrandProductsPage> {
           debugPrint('✓ Parsed: ${product.name}');
         } catch (e) {
           debugPrint('✗ Error parsing product: $e');
-          debugPrint('  Product data keys: ${item.keys}');
         }
       }
       
@@ -403,7 +407,6 @@ class _BrandProductsPageState extends State<BrandProductsPage> {
       debugPrint('=== ERROR fetching brand products ===');
       debugPrint('Error: $e');
       debugPrint('Stack trace: $stackTrace');
-      // Re-throw the error so FutureBuilder can catch it
       rethrow;
     }
   }
@@ -420,12 +423,20 @@ class _BrandProductsPageState extends State<BrandProductsPage> {
   Widget build(BuildContext context) {
     const bg = Color(0xFF0F0F10);
     
+    // Build title based on context
+    String title = widget.brandName;
+    if (widget.categoryName != null && widget.categoryName!.isNotEmpty) {
+      title = '${widget.brandName} ${widget.categoryName}';
+    } else {
+      title = 'All ${widget.brandName} Products';
+    }
+    
     return Scaffold(
       backgroundColor: bg,
       appBar: AppBar(
         backgroundColor: Colors.brown.shade300,
         foregroundColor: Colors.white,
-        title: Text(widget.brandName),
+        title: Text(title),
         elevation: 0,
       ),
       body: Container(

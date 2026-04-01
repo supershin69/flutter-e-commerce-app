@@ -1,5 +1,7 @@
 import 'package:e_commerce_frontend/features/personalization/screens/orders/orders.dart';
 import 'package:e_commerce_frontend/features/admin/screens/admin_orders_dashboard.dart';
+import 'package:e_commerce_frontend/screens/privacy_security_screen.dart';
+import 'package:e_commerce_frontend/screens/help_support_screen.dart';
 import 'package:flutter/material.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
@@ -133,13 +135,23 @@ class _ProfilePageState extends State<ProfilePage> {
                     _buildListTile(
                       icon: Icons.lock_outline,
                       title: 'Privacy & Security',
-                      onTap: () {},
+                      onTap: () {
+                        Navigator.push(
+                          context,
+                          MaterialPageRoute(builder: (_) => const PrivacySecurityScreen()),
+                        );
+                      },
                     ),
                      _buildDivider(),
                     _buildListTile(
                       icon: Icons.help_outline,
                       title: 'Help & Support',
-                      onTap: () {},
+                      onTap: () {
+                        Navigator.push(
+                          context,
+                          MaterialPageRoute(builder: (_) => const HelpSupportScreen()),
+                        );
+                      },
                     ),
                   ]),
 
