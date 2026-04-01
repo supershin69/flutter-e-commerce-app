@@ -1,83 +1,92 @@
 import 'package:e_commerce_frontend/screens/flash_screen.dart';
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
-import 'package:firebase_core/firebase_core.dart';
-import 'package:firebase_messaging/firebase_messaging.dart';
 import 'package:get/get.dart';
 import 'package:e_commerce_frontend/features/shop/controllers/product_controller.dart';
-import 'package:e_commerce_frontend/services/notification_service.dart';
 import 'package:e_commerce_frontend/features/personalization/screens/orders/order_detail_screen.dart';
+import 'package:onesignal_flutter/onesignal_flutter.dart';
 
 final GlobalKey<NavigatorState> navigatorKey = GlobalKey<NavigatorState>();
-
-void handleNotificationInteraction(RemoteMessage message) {
-  final data = message.data;
-  final notification = message.notification;
-  
-  debugPrint('--- Firebase Notification Tapped ---');
-  debugPrint('Message Data: $data');
-  if (notification != null) {
-    debugPrint('Notification Title: ${notification.title}');
-    debugPrint('Notification Body: ${notification.body}');
-  }
-  debugPrint('------------------------------------');
-
-  if (data['type'] == 'delivery_fee_set') {
-    final orderId = data['order_id']?.toString();
-    if (orderId == null || orderId.trim().isEmpty) {
-      debugPrint('Error: order_id is missing or empty in notification data');
-      return;
-    }
-    
-    debugPrint('Navigating to OrderDetailScreen for orderId: $orderId');
-    WidgetsBinding.instance.addPostFrameCallback((_) {
-      final nav = navigatorKey.currentState;
-      if (nav != null) {
-        debugPrint('Using navigatorKey for navigation');
-        nav.push(MaterialPageRoute(builder: (_) => OrderDetailScreen.byId(orderId: orderId)));
-      } else {
-        debugPrint('navigatorKey.currentState is NULL, falling back to Get.to');
-        Get.to(() => OrderDetailScreen.byId(orderId: orderId));
-      }
-    });
-  } else if (data['type'] == 'price_drop') {
-    final productId = data['product_id'];
-    debugPrint("Price drop notification for product: $productId");
-    // Add product navigation logic here if needed
-  } else {
-    debugPrint('Unknown notification type: ${data['type']}');
-  }
-}
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
 
-  await Firebase.initializeApp();
-
+  // Supabase Initialization
   await Supabase.initialize(
     url: 'https://mxngcloeolzkfnauioln.supabase.co',
-    anonKey: 'sb_secret_-Rfkp-sQcn-cYWnb-p6drQ_MuTJzwrI',
+    anonKey: 'sb_publishable_ia5D5O1Eh0kRIoNyuz5iXQ_9pY7zIWX',
     authOptions: const FlutterAuthClientOptions(
       authFlowType: AuthFlowType.pkce,
     ),
   );
 
-  // Initialize Notification Service
-  await NotificationService().initialize();
-  
-  // Handle notification tap when app is in background (opened from notification)
-  FirebaseMessaging.onMessageOpenedApp.listen((RemoteMessage message) {
-    debugPrint('🔥 onMessageOpenedApp triggered');
-    handleNotificationInteraction(message);
+  // ==================== OneSignal Setup ====================
+  if (kDebugMode) {
+    OneSignal.Debug.setLogLevel(OSLogLevel.verbose);
+  }
+
+  OneSignal.initialize("711d1435-53f7-49eb-8d5f-6609f7bcd77a");
+
+  debugPrint("✅ OneSignal initialized successfully");
+
+  // Request notification permission
+  final granted = await OneSignal.Notifications.requestPermission(true);
+  debugPrint("🔔 Notification permission granted: $granted");
+
+  // Listen for push subscription changes (for debugging)
+  OneSignal.User.pushSubscription.addObserver((state) {
+    debugPrint(
+      "🔄 Push Subscription → ID: ${state.current.id ?? 'null'}, OptedIn: ${state.current.optedIn ?? false}",
+    );
   });
 
-  // Handle notification tap when app is terminated
-  FirebaseMessaging.instance.getInitialMessage().then((RemoteMessage? initialMessage) {
-    if (initialMessage != null) {
-      debugPrint('🔥 getInitialMessage triggered');
-      handleNotificationInteraction(initialMessage);
+  // Foreground notification handler
+  OneSignal.Notifications.addForegroundWillDisplayListener((event) {
+    debugPrint("🔔 Foreground Notification: ${event.notification.title}");
+
+    // This forces the notification to show as heads-up banner
+    event.notification.display();
+
+    // Optional: You can also prevent default if you want full control later
+    // event.preventDefault();
+  });
+
+  // Notification click handler
+  OneSignal.Notifications.addClickListener((event) {
+    final data = event.notification.additionalData;
+    debugPrint('🔔 OneSignal Notification Clicked with data: $data');
+
+    if (data != null && data['type'] == 'delivery_fee_set') {
+      final orderId = data['order_id']?.toString();
+      if (orderId != null && orderId.isNotEmpty) {
+        WidgetsBinding.instance.addPostFrameCallback((_) {
+          navigatorKey.currentState?.push(
+            MaterialPageRoute(
+              builder: (_) => OrderDetailScreen.byId(orderId: orderId),
+            ),
+          );
+        });
+      }
+    }
+  });
+
+  // Auth state listener - Link user to OneSignal
+  Supabase.instance.client.auth.onAuthStateChange.listen((data) async {
+    final session = data.session;
+
+    if (session != null) {
+      OneSignal.logout(); // ← First logout old user
+      OneSignal.login(session.user.id); // ← Then login new user
+      debugPrint("🔗 OneSignal: Switched to user ${session.user.id}");
+
+      // Step 2: Force Re-subscription
+      OneSignal.User.pushSubscription.optOut();
+      await Future.delayed(const Duration(milliseconds: 500));
+      OneSignal.User.pushSubscription.optIn();
     } else {
-      debugPrint('No initial notification message found');
+      OneSignal.logout();
+      debugPrint("🔐 OneSignal: Logged out");
     }
   });
 
@@ -89,7 +98,6 @@ void main() async {
 class MyApp extends StatelessWidget {
   const MyApp({super.key});
 
-  // This widget is the root of your application.
   @override
   Widget build(BuildContext context) {
     return GetMaterialApp(
@@ -101,6 +109,6 @@ class MyApp extends StatelessWidget {
         useMaterial3: true,
       ),
       home: const SplashScreen(),
-    ); 
+    );
   }
 }

@@ -8,15 +8,15 @@ class ProductsPage extends StatefulWidget{
 
     final String categoryName;
     final String categoryId;
-    final String brandId;
-    final String brandName;
+    final String? brandId;
+    final String? brandName;
 
     const ProductsPage ({
       super.key,
       required this.categoryId,
       required this.categoryName,
-      required this.brandId,
-      required this.brandName
+      this.brandId,
+      this.brandName
     });
 
    
@@ -38,10 +38,17 @@ class _ProductState extends State<ProductsPage> {
     }
 
     Future <List<Product>> fetchProducts() async {
-      final data = await supabase.from('product_catalog')
-                                .select()
-                                .eq('category_name', widget.categoryName)
-                                .eq('brand_name', widget.brandName);
+      var query = supabase.from('product_catalog').select();
+      
+      if (widget.categoryName.isNotEmpty) {
+        query = query.eq('category_name', widget.categoryName);
+      }
+      
+      if (widget.brandName != null && widget.brandName!.isNotEmpty) {
+        query = query.eq('brand_name', widget.brandName!);
+      }
+
+      final data = await query;
       
       debugPrint(data.toString());
       
@@ -64,7 +71,11 @@ class _ProductState extends State<ProductsPage> {
       appBar: AppBar(
         backgroundColor: AppColors.appbarColor,
         foregroundColor: Colors.black,
-        title: Text('${widget.brandName} Products'),
+        title: Text(
+          widget.brandName != null && widget.brandName!.isNotEmpty
+              ? '${widget.brandName} Products'
+              : '${widget.categoryName} Products',
+        ),
       ),
       body: RefreshIndicator(
         onRefresh: _onRefresh,

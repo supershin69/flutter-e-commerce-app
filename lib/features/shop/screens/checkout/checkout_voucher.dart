@@ -8,6 +8,7 @@ import 'package:e_commerce_frontend/services/checkout_service.dart';
 import 'package:e_commerce_frontend/features/shop/models/order_model.dart';
 import 'package:e_commerce_frontend/utils/colors.dart';
 import 'package:e_commerce_frontend/features/shop/screens/checkout/order_success_page.dart';
+import 'package:get/get.dart';
 
 class CheckoutVoucher extends StatefulWidget {
   const CheckoutVoucher({super.key});
@@ -37,7 +38,7 @@ class _CheckoutVoucherState extends State<CheckoutVoucher> {
   final TextEditingController _streetController = TextEditingController();
   
   // Delivery option
-  String _deliveryMethod = 'Car Gate'; // 'Car Gate' or 'Royal Express'
+  String _selectedShippingMethod = 'standard'; // 'standard' or 'royal'
   
   bool _isSubmitting = false;
   bool _hasShippingInfo = false;
@@ -131,6 +132,13 @@ class _CheckoutVoucherState extends State<CheckoutVoucher> {
     // Always validate form if logged-in user doesn't have shipping info
     if (!_hasShippingInfo) {
       if (!_formKey.currentState!.validate()) {
+        Get.snackbar(
+          'Validation Error',
+          'Please correct the errors in the form',
+          snackPosition: SnackPosition.BOTTOM,
+          backgroundColor: Colors.red.withOpacity(0.8),
+          colorText: Colors.white,
+        );
         return;
       }
     }
@@ -150,31 +158,48 @@ class _CheckoutVoucherState extends State<CheckoutVoucher> {
 
     // Validate that we have all required fields
     if (customerName.isEmpty) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('Please provide your name'),
-          backgroundColor: Colors.red,
-        ),
+      Get.snackbar(
+        'Required Field',
+        'Please provide your name',
+        snackPosition: SnackPosition.BOTTOM,
+        backgroundColor: Colors.red.withOpacity(0.8),
+        colorText: Colors.white,
       );
       return;
     }
 
+    // Comprehensive Phone Validation
     if (phoneNumber.isEmpty) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('Please provide your phone number'),
-          backgroundColor: Colors.red,
-        ),
+      Get.snackbar(
+        'Required Field',
+        'Phone number is required',
+        snackPosition: SnackPosition.BOTTOM,
+        backgroundColor: Colors.red.withOpacity(0.8),
+        colorText: Colors.white,
+      );
+      return;
+    }
+
+    final phoneRegex = RegExp(r'^09\d{9}$');
+    if (!phoneRegex.hasMatch(phoneNumber)) {
+      Get.snackbar(
+        'Invalid Phone Number',
+        'Please enter a valid Myanmar phone number (starts with 09 and 11 digits)',
+        snackPosition: SnackPosition.BOTTOM,
+        backgroundColor: Colors.red.withOpacity(0.8),
+        colorText: Colors.white,
+        duration: const Duration(seconds: 4),
       );
       return;
     }
 
     if (city.isEmpty || street.isEmpty) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('Please provide both city and street address'),
-          backgroundColor: Colors.red,
-        ),
+      Get.snackbar(
+        'Required Field',
+        'Please provide both city and street address',
+        snackPosition: SnackPosition.BOTTOM,
+        backgroundColor: Colors.red.withOpacity(0.8),
+        colorText: Colors.white,
       );
       return;
     }
@@ -209,15 +234,8 @@ class _CheckoutVoucherState extends State<CheckoutVoucher> {
       // Create order (supports both authenticated and guest users)
       OrderModel? order;
       try {
-        // Map delivery method to shipping_method (database column name)
-        String? dbShippingMethod;
-        if (_deliveryMethod == 'Car Gate') {
-          dbShippingMethod = 'standard';
-        } else if (_deliveryMethod == 'Royal Express') {
-          dbShippingMethod = 'express';
-        } else {
-          dbShippingMethod = 'standard'; // Default fallback
-        }
+        // The underlying values being saved to the shipping_method column are "standard" and "royal"
+        String? dbShippingMethod = _selectedShippingMethod;
 
         order = await _checkoutService.createOrder(
           userId: currentUser.id, // Required - user must be logged in
@@ -492,6 +510,11 @@ class _CheckoutVoucherState extends State<CheckoutVoucher> {
 
                   const SizedBox(height: 24),
 
+                  // Delivery Method Selection
+                  _buildDeliveryMethodSelector(card, border, accent, muted),
+
+                  const SizedBox(height: 24),
+
                   // Order Items Section
                   _buildSectionHeader('Order Items'),
                   const SizedBox(height: 12),
@@ -553,7 +576,7 @@ class _CheckoutVoucherState extends State<CheckoutVoucher> {
                           children: [
                             Expanded(
                               child: Text(
-                                'Delivery Fee ($_deliveryMethod)',
+                                'Delivery Fee (${_selectedShippingMethod == 'standard' ? 'Standard' : 'Royal'})',
                                 style: const TextStyle(
                                   color: muted,
                                   fontSize: 14,
@@ -747,7 +770,12 @@ class _CheckoutVoucherState extends State<CheckoutVoucher> {
           ),
           validator: (value) {
             if (value == null || value.trim().isEmpty) {
-              return 'Please enter your phone number';
+              return 'Phone number is required';
+            }
+            // Myanmar phone number validation: starts with 09 and 11 digits total
+            final phoneRegex = RegExp(r'^09\d{9}$');
+            if (!phoneRegex.hasMatch(value.trim())) {
+              return 'Please enter a valid Myanmar phone number (starts with 09 and 11 digits)';
             }
             return null;
           },
@@ -967,44 +995,51 @@ class _CheckoutVoucherState extends State<CheckoutVoucher> {
   }
 
   Widget _buildDeliveryMethodSelector(Color card, Color border, Color accent, Color muted) {
-    return Container(
-      padding: const EdgeInsets.all(16),
-      decoration: BoxDecoration(
-        color: card,
-        borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: border),
-      ),
-      child: Column(
-        children: [
-          _buildDeliveryOption(
-            'Car Gate',
-            'Quote will be provided later',
-            'Car Gate',
-            Icons.local_shipping_outlined,
-            card,
-            border,
-            accent,
-            muted,
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        _buildSectionHeader('Delivery Method'),
+        const SizedBox(height: 12),
+        Container(
+          padding: const EdgeInsets.all(16),
+          decoration: BoxDecoration(
+            color: card,
+            borderRadius: BorderRadius.circular(12),
+            border: Border.all(color: border),
           ),
-          const SizedBox(height: 12),
-          _buildDeliveryOption(
-            'Royal Express',
-            'Quote will be provided later',
-            'Royal Express',
-            Icons.flash_on_outlined,
-            card,
-            border,
-            accent,
-            muted,
+          child: Column(
+            children: [
+              _buildDeliveryOption(
+                'Car Gate',
+                'Manual delivery quote',
+                'standard',
+                Icons.local_shipping_outlined,
+                card,
+                border,
+                accent,
+                muted,
+              ),
+              const SizedBox(height: 12),
+              _buildDeliveryOption(
+                'Royal Express',
+                'Manual delivery quote',
+                'royal',
+                Icons.flash_on_outlined,
+                card,
+                border,
+                accent,
+                muted,
+              ),
+            ],
           ),
-        ],
-      ),
+        ),
+      ],
     );
   }
 
   Widget _buildDeliveryOption(
     String title,
-    String price,
+    String subtitle,
     String value,
     IconData icon,
     Color card,
@@ -1012,11 +1047,11 @@ class _CheckoutVoucherState extends State<CheckoutVoucher> {
     Color accent,
     Color muted,
   ) {
-    final isSelected = _deliveryMethod == value;
+    final isSelected = _selectedShippingMethod == value;
     return InkWell(
       onTap: () {
         setState(() {
-          _deliveryMethod = value;
+          _selectedShippingMethod = value;
           _updateDeliveryFee();
         });
       },
@@ -1048,12 +1083,12 @@ class _CheckoutVoucherState extends State<CheckoutVoucher> {
                     style: TextStyle(
                       color: isSelected ? accent : AppColors.textDark,
                       fontSize: 14,
-                      fontWeight: isSelected ? FontWeight.w600 : FontWeight.w500,
+                      fontWeight: isSelected ? FontWeight.bold : FontWeight.w500,
                     ),
                   ),
                   const SizedBox(height: 2),
                   Text(
-                    price,
+                    subtitle,
                     style: TextStyle(
                       color: muted,
                       fontSize: 12,

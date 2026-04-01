@@ -185,12 +185,15 @@ class ProductCard extends StatelessWidget {
                 ),
               ),
             Positioned(
-              bottom: 55,
+              bottom: 50, // Slightly adjusted for better positioning
               right: 8,
               child: GestureDetector(
+                behavior: HitTestBehavior.opaque,
                 onTap: () async {
+                   debugPrint('🟢 Plus button tapped for product: ${product.name}');
                    try {
                      if (needsVariantSelection) {
+                       debugPrint('🟡 Needs variant selection, navigating to details...');
                        if (context.mounted) {
                          ScaffoldMessenger.of(context).showSnackBar(
                            SnackBar(
@@ -207,12 +210,29 @@ class ProductCard extends StatelessWidget {
                        );
                        return;
                      }
+
+                     // Robust check for variants before access
+                     if (product.variants.isEmpty) {
+                        debugPrint('🔴 Error: No variants found for direct add to cart');
+                        if (context.mounted) {
+                          ScaffoldMessenger.of(context).showSnackBar(
+                            const SnackBar(content: Text('Error: No variants found for this product')),
+                          );
+                        }
+                        return;
+                     }
+
+                     final firstVariant = product.variants.first;
+                     debugPrint('🔵 Using variant: ${firstVariant.id}');
+
                      final cartItem = CartItem(
                        id: DateTime.now().millisecondsSinceEpoch.toString(),
                        productId: product.id,
                        productName: product.name,
-                       variantId: product.variants.first.id,
-                       variantName: product.variants.first.attributes.map((a) => a.value).join(', '),
+                       variantId: firstVariant.id,
+                       variantName: firstVariant.attributes.isEmpty 
+                           ? 'Standard' 
+                           : firstVariant.attributes.map((a) => a.value).join(', '),
                        price: product.displayPrice.toInt(),
                        quantity: 1,
                        imageUrl: imageUrl,
@@ -220,8 +240,12 @@ class ProductCard extends StatelessWidget {
                        categoryName: product.categoryName,
                      );
                      
+                     debugPrint('🔵 Created cartItem: ${cartItem.productName} (${cartItem.variantId})');
+                     
                      final cartService = CartService();
                      final success = await cartService.addToCart(cartItem);
+                     
+                     debugPrint('🟢 Add to cart result: $success');
                      
                      if (context.mounted) {
                        ScaffoldMessenger.of(context).showSnackBar(
@@ -232,15 +256,21 @@ class ProductCard extends StatelessWidget {
                          ),
                        );
                      }
-                   } catch (e) {
-                     debugPrint('Error adding to cart: $e');
+                   } catch (e, stack) {
+                     debugPrint('🔴 CRITICAL ERROR adding to cart: $e');
+                     debugPrint('Stack trace: $stack');
+                     if (context.mounted) {
+                        ScaffoldMessenger.of(context).showSnackBar(
+                          SnackBar(content: Text('Error: $e'), backgroundColor: Colors.red),
+                        );
+                     }
                    }
                 },
                 child: Container(
                   width: 36,
                   height: 36,
                   decoration: BoxDecoration(
-                    color: needsVariantSelection ? Colors.brown.shade300 : Colors.grey[200],
+                    color: Colors.grey[200],
                     shape: BoxShape.circle,
                     boxShadow: [
                       BoxShadow(
@@ -251,8 +281,8 @@ class ProductCard extends StatelessWidget {
                     ],
                   ),
                   child: Icon(
-                    needsVariantSelection ? Icons.tune : Icons.add,
-                    color: needsVariantSelection ? Colors.white : Colors.grey[800],
+                    Icons.add,
+                    color: Colors.grey[800],
                   ),
                 ),
               ),

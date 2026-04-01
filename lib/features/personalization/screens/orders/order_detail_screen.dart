@@ -5,6 +5,7 @@ import 'package:e_commerce_frontend/features/shop/models/order_model.dart';
 import 'package:e_commerce_frontend/models/cart_item_model.dart';
 import 'package:e_commerce_frontend/utils/colors.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
+import 'package:get/get.dart'; // Added GetX for navigation and state management
 
 class OrderDetailScreen extends StatefulWidget {
   final String orderId;
@@ -104,15 +105,21 @@ class _OrderDetailScreenState extends State<OrderDetailScreen> {
       );
 
       if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Payment submitted successfully')),
-      );
+      
+      // Success Handling: Show nice success dialog and navigate back
+      _showSuccessDialog();
+      
       _transactionIdController.clear();
       await _reload();
     } catch (e) {
       if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Error: $e'), backgroundColor: Colors.red),
+      Get.snackbar(
+        'Payment Error',
+        'Failed to confirm payment: $e',
+        snackPosition: SnackPosition.BOTTOM,
+        backgroundColor: Colors.red.withOpacity(0.8),
+        colorText: Colors.white,
+        margin: const EdgeInsets.all(15),
       );
     } finally {
       if (mounted) {
@@ -121,6 +128,77 @@ class _OrderDetailScreenState extends State<OrderDetailScreen> {
         });
       }
     }
+  }
+
+  /// Show a clean and modern success dialog using GetX
+  void _showSuccessDialog() {
+    Get.dialog(
+      Dialog(
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+        child: Padding(
+          padding: const EdgeInsets.all(24.0),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              const Icon(
+                Icons.check_circle_outline,
+                color: Colors.green,
+                size: 80,
+              ),
+              const SizedBox(height: 20),
+              const Text(
+                'Payment Confirmed!',
+                style: TextStyle(
+                  fontSize: 22,
+                  fontWeight: FontWeight.bold,
+                  color: AppColors.textDark,
+                ),
+              ),
+              const SizedBox(height: 12),
+              const Text(
+                'Your payment has been submitted successfully.\nYour order is now being processed.',
+                textAlign: TextAlign.center,
+                style: TextStyle(
+                  fontSize: 14,
+                  color: Colors.grey,
+                ),
+              ),
+              const SizedBox(height: 24),
+              SizedBox(
+                width: double.infinity,
+                child: ElevatedButton(
+                  onPressed: () {
+                    Get.back(); // Close dialog
+                    Get.back(); // Navigate back to order list
+                  },
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: Colors.brown.shade300,
+                    foregroundColor: Colors.white,
+                    padding: const EdgeInsets.symmetric(vertical: 14),
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(12),
+                    ),
+                  ),
+                  child: const Text(
+                    'Back to Orders',
+                    style: TextStyle(fontWeight: FontWeight.bold),
+                  ),
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+      barrierDismissible: false,
+    );
+
+    // Auto-navigate after 3 seconds if user doesn't press button
+    Future.delayed(const Duration(seconds: 3), () {
+      if (Get.isDialogOpen ?? false) {
+        Get.back(); // Close dialog
+        Get.back(); // Navigate back to order list
+      }
+    });
   }
 
   Future<void> _acceptDeliveryFee(String orderId) async {
@@ -338,6 +416,7 @@ class _OrderDetailView extends StatelessWidget {
       case 'standard':
       case 'car gate':
         return 'Car Gate';
+      case 'royal':
       case 'express':
       case 'royal express':
         return 'Royal Express';
@@ -537,61 +616,67 @@ class _OrderDetailView extends StatelessWidget {
                         ),
                       ),
                       const SizedBox(width: 16),
-                      Column(
-                        crossAxisAlignment: CrossAxisAlignment.end,
-                        children: [
-                          Text(
-                            'Status',
-                            style: TextStyle(
-                              color: muted,
-                              fontSize: 12,
-                              fontWeight: FontWeight.w500,
-                            ),
-                          ),
-                          const SizedBox(height: 4),
-                          Container(
-                            padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
-                            decoration: BoxDecoration(
-                              color: _getStatusColor(order.status).withAlpha(25),
-                              borderRadius: BorderRadius.circular(20),
-                              border: Border.all(
-                                color: _getStatusColor(order.status),
-                                width: 1,
-                              ),
-                            ),
-                            child: Text(
-                              _formatStatus(order.status),
+                      Flexible(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.end,
+                          children: [
+                            Text(
+                              'Status',
                               style: TextStyle(
-                                color: _getStatusColor(order.status),
-                                fontSize: 14,
-                                fontWeight: FontWeight.bold,
-                                letterSpacing: 0.3,
+                                color: muted,
+                                fontSize: 12,
+                                fontWeight: FontWeight.w500,
                               ),
                             ),
-                          ),
-                          const SizedBox(height: 8),
-                          // Payment Status Badge
-                          Container(
-                            padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
-                            decoration: BoxDecoration(
-                              color: _getPaymentStatusColor(order.paymentStatus).withAlpha(25),
-                              borderRadius: BorderRadius.circular(20),
-                              border: Border.all(
-                                color: _getPaymentStatusColor(order.paymentStatus),
-                                width: 1,
+                            const SizedBox(height: 4),
+                            Container(
+                              padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
+                              decoration: BoxDecoration(
+                                color: _getStatusColor(order.status).withAlpha(25),
+                                borderRadius: BorderRadius.circular(20),
+                                border: Border.all(
+                                  color: _getStatusColor(order.status),
+                                  width: 1,
+                                ),
+                              ),
+                              child: Text(
+                                _formatStatus(order.status),
+                                overflow: TextOverflow.ellipsis,
+                                maxLines: 1,
+                                style: TextStyle(
+                                  color: _getStatusColor(order.status),
+                                  fontSize: 14,
+                                  fontWeight: FontWeight.bold,
+                                  letterSpacing: 0.3,
+                                ),
                               ),
                             ),
-                            child: Text(
-                              _formatStatus(order.paymentStatus),
-                              style: TextStyle(
-                                color: _getPaymentStatusColor(order.paymentStatus),
-                                fontSize: 12, // Slightly smaller than order status
-                                fontWeight: FontWeight.bold,
-                                letterSpacing: 0.3,
+                            const SizedBox(height: 8),
+                            // Payment Status Badge
+                            Container(
+                              padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
+                              decoration: BoxDecoration(
+                                color: _getPaymentStatusColor(order.paymentStatus).withAlpha(25),
+                                borderRadius: BorderRadius.circular(20),
+                                border: Border.all(
+                                  color: _getPaymentStatusColor(order.paymentStatus),
+                                  width: 1,
+                                ),
+                              ),
+                              child: Text(
+                                _formatStatus(order.paymentStatus),
+                                overflow: TextOverflow.ellipsis,
+                                maxLines: 1,
+                                style: TextStyle(
+                                  color: _getPaymentStatusColor(order.paymentStatus),
+                                  fontSize: 12, // Slightly smaller than order status
+                                  fontWeight: FontWeight.bold,
+                                  letterSpacing: 0.3,
+                                ),
                               ),
                             ),
-                          ),
-                        ],
+                          ],
+                        ),
                       ),
                     ],
                   ),
@@ -816,6 +901,24 @@ class _OrderDetailView extends StatelessWidget {
                       ),
                     ],
                   ),
+                  const Divider(height: 24),
+                  // Delivery Fee
+                  Row(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Icon(Icons.local_shipping_outlined, size: 18, color: accent),
+                      const SizedBox(width: 12),
+                      Expanded(
+                        child: Text(
+                          order.deliveryFee != null ? '${order.deliveryFee} MMK' : 'TBD',
+                          style: const TextStyle(
+                            color: AppColors.textDark,
+                            fontSize: 14,
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
                 ],
               ),
             ),
@@ -1011,7 +1114,7 @@ class _OrderDetailView extends StatelessWidget {
                   ),
                   const SizedBox(height: 8),
                   Text(
-                    _formatCurrency(order.totalAmount + (order.deliveryFee ?? 0)),
+                    _formatCurrency(order.totalAmount),
                     style: TextStyle(
                       color: accent,
                       fontSize: 28,

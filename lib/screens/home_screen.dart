@@ -1,9 +1,13 @@
 import 'dart:async';
 
+import 'package:e_commerce_frontend/features/shop/screens/store/store_search_bar.dart';
+import 'package:e_commerce_frontend/models/category_model.dart';
+import 'package:e_commerce_frontend/screens/all_products_screen.dart';
 import 'package:e_commerce_frontend/features/shop/controllers/product_controller.dart';
 import 'package:get/get.dart';
 import 'package:e_commerce_frontend/models/product_model.dart';
 import 'package:e_commerce_frontend/screens/all_brands_page.dart';
+import 'package:e_commerce_frontend/screens/products_page.dart';
 import 'package:e_commerce_frontend/models/brand_model.dart';
 import 'package:e_commerce_frontend/screens/auth/auth_gate.dart';
 import 'package:e_commerce_frontend/screens/store/store_page.dart';
@@ -29,36 +33,6 @@ class _HomePageState extends State<HomePage> {
   final PageController _bannerPageController = PageController();
   int _currentBannerPage = 0;
   Timer? _bannerTimer;
-
-  final TextEditingController _searchController = TextEditingController();
-
-  // Category data
-  final List<Map<String, dynamic>> categories = [
-    {
-      'name': 'Phones',
-      'icon': Icons.smartphone,
-    },
-    {
-      'name': 'Cameras',
-      'icon': Icons.camera_alt,
-    },
-    {
-      'name': 'Tablets',
-      'icon': Icons.tablet,
-    },
-    {
-      'name': 'TVs',
-      'icon': Icons.tv,
-    },
-    {
-      'name': 'Headphones',
-      'icon': Icons.headphones,
-    },
-    {
-      'name': 'Watches',
-      'icon': Icons.watch,
-    },
-  ];
 
   // Banner images - using uploaded banner images
   final List<String> bannerImages = [
@@ -98,6 +72,7 @@ class _HomePageState extends State<HomePage> {
   late Future<List<Product>> _productsFuture;
   late Future<List<Product>> _latestProductsFuture;
   late Future<List<Brand>> _brandsFuture;
+  late Future<List<Category>> _categoriesFuture;
   List<Product> _popularProductsCache = const [];
   DateTime? _popularProductsCacheAt;
   List<Product> _latestProductsCache = const [];
@@ -114,7 +89,27 @@ class _HomePageState extends State<HomePage> {
     _productsFuture = _fetchPopularProducts();
     _latestProductsFuture = _fetchLatestProducts();
     _brandsFuture = _fetchBrands();
+    _categoriesFuture = _fetchCategories();
     _startBannerTimer();
+  }
+
+  Future<List<Category>> _fetchCategories() async {
+    try {
+      final supabase = Supabase.instance.client;
+      debugPrint('--- Diagnostic: Fetching categories ---');
+      final response = await supabase
+          .from('categories')
+          .select('id, name, image_url');
+      debugPrint('Categories table response count: ${response.length}');
+      
+      return (response as List<dynamic>)
+          .map((e) => Category.fromMap(e as Map<String, dynamic>))
+          .toList();
+    } catch (e, stack) {
+      debugPrint('Error fetching categories: $e');
+      debugPrint('Stack trace: $stack');
+      return [];
+    }
   }
 
   Future<List<Brand>> _fetchBrands() async {
@@ -232,7 +227,6 @@ class _HomePageState extends State<HomePage> {
   @override
   void dispose() {
     _bannerTimer?.cancel();
-    _searchController.dispose();
     _bannerPageController.dispose();
     super.dispose();
   }
@@ -277,6 +271,7 @@ class _HomePageState extends State<HomePage> {
       _productsFuture = _fetchPopularProducts(forceRefresh: true);
       _latestProductsFuture = _fetchLatestProducts(forceRefresh: true);
       _brandsFuture = _fetchBrands();
+      _categoriesFuture = _fetchCategories();
     });
     
     // Wait for all futures to complete
@@ -284,6 +279,7 @@ class _HomePageState extends State<HomePage> {
       _productsFuture,
       _latestProductsFuture,
       _brandsFuture,
+      _categoriesFuture,
     ]);
   }
 
@@ -317,6 +313,68 @@ class _HomePageState extends State<HomePage> {
         },
       ),
     );
+  }
+
+  /// Builds a category icon using local assets for specific categories
+  Widget _buildCategoryIcon(Category category) {
+    final name = category.name.toLowerCase();
+    final brown = Colors.brown.shade300;
+    
+    String? assetPath;
+    
+    // Mapping categories to local PNG assets
+    if (name.contains('smartphone') || name == 'phones' || name == 'phone') {
+      assetPath = 'assets/images/categories/smartphone.png';
+    } else if (name.contains('watch')) {
+      assetPath = 'assets/images/categories/smartwatch.png';
+    } else if (name.contains('tablet')) {
+      assetPath = 'assets/images/categories/tablet.png';
+    } else if (name.contains('headphone')) {
+      assetPath = 'assets/images/categories/headphone.png';
+    } else if (name.contains('laptop')) {
+      assetPath = 'assets/images/categories/laptop.png';
+    } else if (name.contains('monitor')) {
+      assetPath = 'assets/images/categories/monitor.png';
+    } else if (name.contains('access')) {
+      assetPath = 'assets/images/categories/accessories.png';
+    }
+
+    if (assetPath != null) {
+      return Container(
+        padding: const EdgeInsets.all(12), // Padding so icons don't touch edges
+        child: Image.asset(
+          assetPath,
+          fit: BoxFit.contain,
+          errorBuilder: (context, error, stackTrace) => Icon(Icons.category_outlined, size: 30, color: brown),
+        ),
+      );
+    }
+
+    // Fallback to DB image for other categories
+    if (category.imageUrl.isNotEmpty) {
+      return ClipOval(
+        child: Image.network(
+          category.imageUrl,
+          fit: BoxFit.cover,
+          errorBuilder: (context, error, stackTrace) => Icon(Icons.category_outlined, size: 30, color: brown),
+        ),
+      );
+    }
+    
+    return Icon(Icons.category_outlined, size: 30, color: brown);
+  }
+
+  /// Formats category names to match requested labels
+  String _formatCategoryLabel(String name) {
+    final lower = name.toLowerCase();
+    if (lower.contains('smartphone') || lower == 'phones' || lower == 'phone') return 'Smartphones';
+    if (lower.contains('watch')) return 'Smart Watches';
+    if (lower.contains('tablet')) return 'Tablets';
+    if (lower.contains('headphone')) return 'Headphones';
+    if (lower.contains('laptop')) return 'Laptops';
+    if (lower.contains('monitor')) return 'Monitors';
+    if (lower.contains('access')) return 'Accessories';
+    return name;
   }
 
   void _showFilterModal(BuildContext context) {
@@ -377,15 +435,23 @@ class _HomePageState extends State<HomePage> {
                 ),
               ),
               const SizedBox(height: 10),
-              Wrap(
-                spacing: 8,
-                children: categories.map((cat) {
-                  return ChoiceChip(
-                    label: Text(cat['name']),
-                    selected: false,
-                    onSelected: (selected) {},
-                  );
-                }).toList(),
+              FutureBuilder<List<Category>>(
+                future: _categoriesFuture,
+                builder: (context, snapshot) {
+                  if (snapshot.hasData) {
+                    return Wrap(
+                      spacing: 8,
+                      children: snapshot.data!.map((cat) {
+                        return ChoiceChip(
+                          label: Text(cat.name),
+                          selected: false,
+                          onSelected: (selected) {},
+                        );
+                      }).toList(),
+                    );
+                  }
+                  return const SizedBox();
+                },
               ),
               const SizedBox(height: 20),
               SizedBox(
@@ -410,6 +476,7 @@ class _HomePageState extends State<HomePage> {
 
   // Home UI redesigned to match uploaded image
   Widget _buildHomeContent() {
+    const accentPink = Color(0xFFFF80AB); // Pink/red accent from banner
     return GestureDetector(
       onTap: () => FocusScope.of(context).unfocus(),
       child: Column(
@@ -443,58 +510,7 @@ class _HomePageState extends State<HomePage> {
                     const SizedBox(height: 20),
 
                     // Search Bar
-                    Container(
-                      decoration: BoxDecoration(
-                        color: Colors.white,
-                        borderRadius: BorderRadius.circular(12),
-                        boxShadow: [
-                          BoxShadow(
-                            color: Colors.black.withAlpha(25),
-                            blurRadius: 8,
-                            offset: const Offset(0, 2),
-                          ),
-                        ],
-                      ),
-                      child: TextField(
-                        controller: _searchController,
-                        decoration: InputDecoration(
-                          hintText: 'Search in Store',
-                          prefixIcon: const Icon(Icons.search, color: Colors.grey),
-                          suffixIcon: Row(
-                            mainAxisSize: MainAxisSize.min,
-                            children: [
-                              IconButton(
-                                icon: Icon(Icons.mic, color: Colors.grey[600]),
-                                onPressed: () {
-                                  ScaffoldMessenger.of(context).showSnackBar(
-                                    const SnackBar(
-                                      content: Text('Voice Search coming soon'),
-                                      duration: Duration(seconds: 1),
-                                    ),
-                                  );
-                                },
-                              ),
-                              Container(
-                                height: 24,
-                                width: 1,
-                                color: Colors.grey[300],
-                              ),
-                              IconButton(
-                                icon: Icon(Icons.tune, color: Colors.grey[600]),
-                                onPressed: () {
-                                  _showFilterModal(context);
-                                },
-                              ),
-                            ],
-                          ),
-                          border: InputBorder.none,
-                          contentPadding: const EdgeInsets.symmetric(
-                            horizontal: 16,
-                            vertical: 12,
-                          ),
-                        ),
-                      ),
-                    ),
+                    const StoreSearchBar(),
                   ],
                 ),
               ),
@@ -528,52 +544,85 @@ class _HomePageState extends State<HomePage> {
                   // Categories Horizontal List
                   SizedBox(
                     height: 100,
-                    child: ListView.builder(
-                      scrollDirection: Axis.horizontal,
-                      itemCount: categories.length,
-                      itemBuilder: (context, index) {
-                        final category = categories[index];
-                        return Container(
-                          width: 80,
-                          margin: const EdgeInsets.only(right: 16),
-                          child: Column(
-                            children: [
-                              // Circular Icon Container
-                              Container(
-                                width: 70,
-                                height: 70,
-                                decoration: BoxDecoration(
-                                  color: AppColors.categoryIconBg,
-                                  shape: BoxShape.circle,
-                                  boxShadow: [
-                                    BoxShadow(
-                                      color: Colors.black.withAlpha(25),
-                                      blurRadius: 4,
-                                      offset: const Offset(0, 2),
+                    child: FutureBuilder<List<Category>>(
+                      future: _categoriesFuture,
+                      builder: (context, snapshot) {
+                        if (snapshot.connectionState == ConnectionState.waiting) {
+                          return const Center(child: CircularProgressIndicator());
+                        }
+                        if (snapshot.hasError || !snapshot.hasData || snapshot.data!.isEmpty) {
+                          return const Center(child: Text('No categories available'));
+                        }
+                        
+                        final allCategories = snapshot.data!;
+                        // Filter unique categories by formatted label to remove duplicates
+                        final seenLabels = <String>{};
+                        final categories = allCategories.where((c) {
+                          final label = _formatCategoryLabel(c.name);
+                          if (seenLabels.contains(label)) return false;
+                          seenLabels.add(label);
+                          return true;
+                        }).toList();
+                        
+                        return ListView.builder(
+                          scrollDirection: Axis.horizontal,
+                          itemCount: categories.length,
+                          itemBuilder: (context, index) {
+                            final category = categories[index];
+                            return GestureDetector(
+                              onTap: () {
+                                // Navigate to ProductsPage for this category
+                                Navigator.push(
+                                  context,
+                                  MaterialPageRoute(
+                                    builder: (context) => ProductsPage(
+                                      categoryId: category.id,
+                                      categoryName: category.name,
+                                    ),
+                                  ),
+                                );
+                              },
+                              child: Container(
+                                width: 80,
+                                margin: const EdgeInsets.only(right: 16),
+                                child: Column(
+                                  children: [
+                                    // Circular Icon Container
+                                    Container(
+                                      width: 70,
+                                      height: 70,
+                                      decoration: BoxDecoration(
+                                        color: Colors.white,
+                                        shape: BoxShape.circle,
+                                        border: Border.all(color: Colors.grey.shade100),
+                                        boxShadow: [
+                                          BoxShadow(
+                                            color: Colors.black.withAlpha(15),
+                                            blurRadius: 6,
+                                            offset: const Offset(0, 2),
+                                          ),
+                                        ],
+                                      ),
+                                      child: _buildCategoryIcon(category),
+                                    ),
+                                    const SizedBox(height: 8),
+                                    // Category Name
+                                    Text(
+                                      _formatCategoryLabel(category.name),
+                                      style: const TextStyle(
+                                        fontSize: 12,
+                                        color: AppColors.textDark,
+                                        fontWeight: FontWeight.w500,
+                                      ),
+                                      textAlign: TextAlign.center,
+                                      maxLines: 1,
+                                      overflow: TextOverflow.ellipsis,
                                     ),
                                   ],
                                 ),
-                                child: Icon(
-                                  category['icon'] as IconData,
-                                  size: 32,
-                                  color: Colors.white,
-                                ),
                               ),
-                              const SizedBox(height: 8),
-                              // Category Name
-                              Text(
-                                category['name'] as String,
-                                style: const TextStyle(
-                                  fontSize: 12,
-                                  color: AppColors.textDark,
-                                  fontWeight: FontWeight.w500,
-                                ),
-                                textAlign: TextAlign.center,
-                                maxLines: 1,
-                                overflow: TextOverflow.ellipsis,
-                              ),
-                            ],
-                          ),
+                            );
+                          },
                         );
                       },
                     ),
@@ -658,14 +707,15 @@ class _HomePageState extends State<HomePage> {
                                     Container(
                                       width: 70,
                                       height: 70,
-                                      padding: const EdgeInsets.all(12),
+                                      padding: const EdgeInsets.all(8),
                                       decoration: BoxDecoration(
                                         color: Colors.white,
                                         shape: BoxShape.circle,
+                                        border: Border.all(color: Colors.grey.shade100),
                                         boxShadow: [
                                           BoxShadow(
-                                            color: Colors.black.withAlpha(20),
-                                            blurRadius: 4,
+                                            color: Colors.black.withAlpha(15),
+                                            blurRadius: 6,
                                             offset: const Offset(0, 2),
                                           ),
                                         ],
@@ -805,7 +855,15 @@ class _HomePageState extends State<HomePage> {
                       ),
                       GestureDetector(
                         onTap: () {
-                          // Navigate to all products page
+                          Navigator.push(
+                            context,
+                            MaterialPageRoute(
+                              builder: (context) => const AllProductsScreen(
+                                type: 'latest',
+                                title: 'Latest Products',
+                              ),
+                            ),
+                          );
                         },
                         child: const Text(
                           'View all',
@@ -865,7 +923,15 @@ class _HomePageState extends State<HomePage> {
                       ),
                       GestureDetector(
                         onTap: () {
-                          // Navigate to all products page
+                          Navigator.push(
+                            context,
+                            MaterialPageRoute(
+                              builder: (context) => const AllProductsScreen(
+                                type: 'popular',
+                                title: 'Popular Products',
+                              ),
+                            ),
+                          );
                         },
                         child: const Text(
                           'View all',
